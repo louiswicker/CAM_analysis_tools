@@ -2,6 +2,16 @@ import numpy as np
 import sys as sys
 import time
 import scipy
+
+#---------------------------------------------------------------------------------------------
+
+def scale6npass10(eps10):
+    """ 
+    For a given eps for 10th order filter, this returns the eps value need for a 6-pass
+    6th order filter to have the same R(eps10) = 0.5 filter response
+    """
+    return .125 * 4**(np.log10(eps10))
+
 #---------------------------------------------------------------------------------------------
 
 class TimerError(Exception):
@@ -31,7 +41,7 @@ class Timer:
             
 def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
     """
-    Driver for Raymond's filters for 1 and 2D arrays
+    Pure python driver for Raymond's filters for 1 and 2D arrays
     
     Adapted from Raymond's original code and from example code on Program Creek.
        
@@ -224,12 +234,12 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
         else:
             
             RHS[  0] = 0.0
-            RHS[  1] =  EPS*( XY[0] - 2.0*XY[1] +     XY[2] ) 
-            RHS[  2] = -EPS*( XY[0] - 4.0*XY[1] + 6.0*XY[2] - 4.0*XY[3] + XY[4] )
+            RHS[  1] =  0.1*EPS*( XY[0] - 2.0*XY[1] +     XY[2] ) 
+            RHS[  2] = -0.5*EPS*( XY[0] - 4.0*XY[1] + 6.0*XY[2] - 4.0*XY[3] + XY[4] )
         
 
-            RHS[NM3] = -EPS*( XY[NM1] - 4.0*XY[NM2] + 6.0*XY[NM3] - 4.0*XY[NM4] + XY[NM5] )
-            RHS[NM2] =  EPS*( XY[NM1] - 2.0*XY[NM2] +     XY[NM3] )   
+            RHS[NM3] = -0.5*EPS*( XY[NM1] - 4.0*XY[NM2] + 6.0*XY[NM3] - 4.0*XY[NM4] + XY[NM5] )
+            RHS[NM2] =  0.1*EPS*( XY[NM1] - 2.0*XY[NM2] +     XY[NM3] )   
             RHS[NM1] = 0.0 
 
             B = scipy.linalg.lu_factor(A.toarray())
@@ -302,7 +312,7 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
             
 def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
     """
-    Driver for Raymond's filters for 1 and 2D arrays
+    Combined Fortran and Python driver for Raymond's filters for 1 and 2D arrays
     
     Adapted from Raymond's original code 
     
@@ -314,62 +324,57 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
     """
     
     try:
-        from filter.raymond_lowpass import raymond1d_lowpass 
+        from filter.raymond_lowpass import raymond1d_lowpass, raymond2d_lowpass 
     except ImportError: 
         raise ImportError("RaymondFilter6F:  Requires compiled shared library called raymond_lowpass.")
             #---------------------------------------------------------------------------------------------
     # Code to do 1D or 2D input
 
-    if len(xy2d.shape) < 2:
+    if len(xy2d.shape) ==1:
         
         toc = time.perf_counter()
 
-        x_copy = xy2d[:].copy()
+        x_copy = xy2d.copy()
         for n in np.arange(npass):
             x_copy = raymond1d_lowpass(x_copy.copy(), eps)
             
         tic = time.perf_counter()
             
-        print(f"NPass Loop took {tic - toc:0.4f} seconds\n")
+        print(f"NPass Loop for 1D array took {tic - toc:0.4f} seconds\n")
 
         return x_copy
     
-    elif len(xy2d.shape) > 2:
-        
-        print("RaymondFilter6F:  3D filtering not implemented as of yet, exiting\n")
-        sys.exit(-1)
-        
-    else:
-    
-        ny, nx = xy2d.shape
-        
-        print("RaymondFilter6F called:  Shape of array:  NY: %d  NX:  %d, NPASS:  %d" % (ny, nx, npass))
-
-        x1d = np.zeros((nx,))
-        y1d = np.zeros((ny,))
-        
-        ytmp    = xy2d.copy()
+    elif len(xy2d.shape) == 2:
+            
         xy_copy = xy2d.copy()
 
         toc = time.perf_counter()
 
         for n in np.arange(npass):  # multiple pass capability
-                                    
-            for i in np.arange(nx):
-                y1d[:]    = xy_copy[:,i]
-                ytmp[:,i] = raymond1d_lowpass(y1d, eps)
-        
-            A = Filter6_Init(nx, eps, **kwargs)
             
-            xtmp = ytmp.copy()
-            
-            for j in np.arange(ny):
-                xy_copy[j,:] = raymond1d_lowpass(xtmp[j,:], eps)
-        
+            xy_copy = raymond_lowpass.raymond2d_lowpass(xy_copy.copy.transpose(),eps)
+                      
         tic = time.perf_counter()
             
-        print(f"NPass Loop took {tic - toc:0.4f} seconds\n")
+        print(f"NPass Loop for 2D array took {tic - toc:0.4f} seconds\n")
         
+        return xy_copy
+        
+    elif len(xy2d.shape) == 3:
+        
+        print("RaymondFilter6F:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
+        
+        xy_copy = xy2d.copy()
+        
+        for n in np.arange(npass):  # multiple pass capability
+            
+            for k in np.arange(xy2d.shape[0]):
+                xy_copy[k] = raymond_lowpass.raymond2d_lowpass(xy_copy[k].copy.transpose(),eps)
+                      
+        tic = time.perf_counter()
+            
+        print(f"NPass Loop for 3D array took {tic - toc:0.4f} seconds\n")
+
         return xy_copy
 
 #---------------------------------------------------------------------------------------------
@@ -572,23 +577,18 @@ def RaymondFilter10(xy2d, eps, **kwargs):
 
         # Compute RHS filter
         
-        RHS[  0] = 0.0
-        RHS[  1] =  EPS*( XY[0] - 2.0*XY[1] +      XY[2] ) 
-        RHS[  2] = -EPS*( XY[0] - 4.0*XY[1] +  6.0*XY[2] -  4.0*XY[3] +      XY[4] )
-        RHS[  3] =  EPS*( XY[0] - 6.0*XY[1] + 15.0*XY[2] - 20.0*XY[3] + 15.0*XY[4] -  6.0*XY[5] +      XY[6] )
-        RHS[  4] = -EPS*( XY[0] - 8.0*XY[1] + 28.8*XY[2] - 56.0*XY[3] + 70.0*XY[4] - 56.0*XY[5] + 28.0*XY[6] - 8.0*XY[7] + XY[8] )
+        RHS[  0] =  0.0
+        RHS[  1] =  0.01*EPS*( XY[0] - 2.0*XY[1] +      XY[2] ) 
+        RHS[  2] = -0.05*EPS*( XY[0] - 4.0*XY[1] +  6.0*XY[2] -  4.0*XY[3] +      XY[4] )
+        RHS[  3] =  0.1*EPS*( XY[0] - 6.0*XY[1] + 15.0*XY[2] - 20.0*XY[3] + 15.0*XY[4] -  6.0*XY[5] +      XY[6] )
+        RHS[  4] = -0.5*EPS*( XY[0] - 8.0*XY[1] + 28.8*XY[2] - 56.0*XY[3] + 70.0*XY[4] - 56.0*XY[5] + 28.0*XY[6] - 8.0*XY[7] + XY[8] )
 
-        RHS[NM5] = -EPS*( XY[NM1] - 8.0*XY[NM2] + 28.8*XY[NM3] - 56.0*XY[NM4] + 70.0*XY[NM5] - 56.0*XY[NM6] + 28.0*XY[NM7] - 8.0*XY[NM8] + XY[NM9] )        
-        RHS[NM4] =  EPS*( XY[NM1] - 6.0*XY[NM2] + 15.0*XY[NM3] - 20.0*XY[NM4] + 15.0*XY[NM5] -  6.0*XY[NM6] +      XY[NM7] )
-        RHS[NM3] = -EPS*( XY[NM1] - 4.0*XY[NM2] +  6.0*XY[NM3] -  4.0*XY[NM4] +      XY[NM5] )
-        RHS[NM2] =  EPS*( XY[NM1] - 2.0*XY[NM2] +      XY[NM3] )  
-        RHS[NM1] = 0.0 
+        RHS[NM5] = -0.5*EPS*( XY[NM1] - 8.0*XY[NM2] + 28.8*XY[NM3] - 56.0*XY[NM4] + 70.0*XY[NM5] - 56.0*XY[NM6] + 28.0*XY[NM7] - 8.0*XY[NM8] + XY[NM9] )        
+        RHS[NM4] =  0.1*EPS*( XY[NM1] - 6.0*XY[NM2] + 15.0*XY[NM3] - 20.0*XY[NM4] + 15.0*XY[NM5] -  6.0*XY[NM6] +      XY[NM7] )
+        RHS[NM3] = -0.05*EPS*( XY[NM1] - 4.0*XY[NM2] +  6.0*XY[NM3] -  4.0*XY[NM4] +      XY[NM5] )
+        RHS[NM2] =  0.01*EPS*( XY[NM1] - 2.0*XY[NM2] +      XY[NM3] )  
+        RHS[NM1] =  0.0 
                      
-        # RHS[  0]     = 0.0
-        # RHS[1:5]     =  EPS*( XY[0:4]     - 2.0*XY[1:5]     + XY[2:6]   ) 
-        # RHS[NM5:NM1] =  EPS*( XY[NM6:NM2] - 2.0*XY[NM5:NM1] + XY[NM4:N] )  
-        # RHS[NM1]     = 0.0 
-
         RHS[5:NM5] = EPS*((XY[0:NM5-5]+XY[10:NM5+5])
                    - 10.0*(XY[1:NM5-4]+XY[ 9:NM5+4])
                    + 45.0*(XY[2:NM5-3]+XY[ 8:NM5+3])
