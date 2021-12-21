@@ -352,7 +352,7 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
 
         for n in np.arange(npass):  # multiple pass capability
             
-            xy_copy = raymond_lowpass.raymond2d_lowpass(xy_copy.copy.transpose(),eps)
+            xy_copy = raymond2d_lowpass(xy_copy.transpose(),eps)
                       
         tic = time.perf_counter()
             
@@ -369,7 +369,7 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
         for n in np.arange(npass):  # multiple pass capability
             
             for k in np.arange(xy2d.shape[0]):
-                xy_copy[k] = raymond_lowpass.raymond2d_lowpass(xy_copy[k].copy.transpose(),eps)
+                xy_copy[k] = raymond2d_lowpass(xy_copy[k].transpose().copy,eps)
                       
         tic = time.perf_counter()
             
