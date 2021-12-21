@@ -14,6 +14,49 @@ def scale6npass10(eps10):
 
 #---------------------------------------------------------------------------------------------
 
+def RaymondResponse(wavenumber, eps, order, npass=1):
+    """
+    Response function from RAYMOND (MWR, 1988, Vol:116, pp:2132-2141) showing for a given
+    value of EPS, what is the response function (0 --> 1).  In this formulation,
+    we also include the possibility of multiple passes of the filter to improve
+    the steepness of the function.  
+    
+    Wavenumber is an array or value of the "Nth" dx, e.g., 
+    
+    set wavenumber = 8 for 8 dx, 4 for 4 dx.
+    
+    If wavenumber = -1, then generate the response from kd = [0,1], e.g., 
+    from L = infinity to L = 2dx
+    """
+    
+    if wavenumber > 0:
+        kd = 2.0/wavenumber
+    else:
+        kd = np.arange(0,100) / 100
+    
+    return (1.0/(1.0 + eps*(np.tan(kd*np.pi/2)**order))**npass)
+
+#---------------------------------------------------------------------------------------------
+
+def inverseRaymondResponse(Rvalue, wavenumber, order=6, npass=1):
+    """
+    For a given response value (like 0.5), find the EPS that will return that
+    response value for a given wavenumber, filter order, and number of passes.
+    
+    For example, if one wanted the 8 dx response to be 0.1 for the 6th order
+    Raymond filter with a single pass, then the value of eps would be found
+    via:
+    
+    eps8_6th_np1 = inverseRaymond(0.1, 8, order=6, npass = 1)
+    
+    """
+    
+    k = 2.0/np.array(wavenumber)
+    
+    return (1.0 / Rvalue**(1.0/npass) - 1.0 )/(np.tan(k*np.pi/2)**order)
+
+#---------------------------------------------------------------------------------------------
+
 class TimerError(Exception):
     """A custom exception used to report errors in use of Timer class"""
 
