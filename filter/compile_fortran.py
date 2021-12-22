@@ -44,7 +44,8 @@ for item in fortran_files:
     print("\n=====================================================\n")
     print("  Attempting to compile file: %s " % item)
     print("\n=====================================================")
-    ret = os.system("f2py -c --fcompiler='gnu95' %s -m %s %s -DF2PY_REPORT_ON_ARRAY_COPY=1" % (libopts,prefix,item))
+#   ret = os.system("f2py -c --fcompiler='gnu95' %s -m %s %s -DF2PY_REPORT_ON_ARRAY_COPY=1" % (libopts,prefix,item))
+    ret = os.system("f2py -c --fcompiler='gnu95' %s -m %s %s" % (libopts,prefix,item))
     if ret == 0:
         print("\n=====================================================\n")
         print("   Successfully compiled file: %s " % item)
