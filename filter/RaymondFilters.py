@@ -405,6 +405,8 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
         
     elif len(xy2d.shape) == 3:
         
+        toc = time.perf_counter()
+        
         print("RaymondFilter6F:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
         
         xy_copy = xy2d.copy()
@@ -412,7 +414,8 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
         for n in np.arange(npass):  # multiple pass capability
             
             for k in np.arange(xy2d.shape[0]):
-                xy_copy[k] = raymond2d_lowpass(xy_copy[k].transpose().copy,eps)
+                xy = xy_copy[k].copy()
+                xy_copy[k] = raymond2d_lowpass(xy,eps)
                       
         tic = time.perf_counter()
             
@@ -440,7 +443,6 @@ def RaymondFilter10(xy2d, eps, **kwargs):
         from scipy.sparse.linalg import spsolve
     except ImportError: 
         raise ImportError("Raymond_10_Filter1D requires scipy.sparse libraries.")
-        
         
     #---------------------------------------------------------------------------------------------
     def Filter10_Init(N, EPS, **kwargs):
@@ -651,19 +653,14 @@ def RaymondFilter10(xy2d, eps, **kwargs):
     #---------------------------------------------------------------------------------------------
     # Code to do 1D or 2D input
 
-    if len(xy2d.shape) < 2:
+    if len(xy2d.shape) == 1:
         A = Filter10_Init(xy2d.shape[0], eps)
         
-        print(f'\nCOND:  \n',np.linalg.cond(A.toarray()))
-
+        print(f'\nCOND #:  \n',np.linalg.cond(A.toarray()))
 
         return Filter1D(xy2d[:], eps, A, **kwargs)
     
-    elif len(xy2d.shape) > 2:
-        print("RaymondFilter6:  3D filtering not implemented as of yet, exiting\n")
-        sys.exit(-1)
-        
-    else:
+    elif len(xy2d.shape) == 2:
 
         ny, nx = xy2d.shape
         
@@ -692,6 +689,46 @@ def RaymondFilter10(xy2d, eps, **kwargs):
         
         toc = time.perf_counter()
         print(f"J-loop {toc - tic:0.4f} seconds")
+        
+    elif len(xy2d.shape) == 3:
+        
+        print("RaymondFilter10:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
+        print("RaymondFilter10:  NPASS = 1 is only implementation!!! \n")
+        
+        if 'klevels' in kwargs:
+            klevels = kwargs.get('klevels')
+            print("RaymondFilter10: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+        else:
+            klevels = [k for k in np.arange(nz)]
+
+        toc = time.perf_counter()
+        
+        nz, ny, nx = xy2d.shape
+        
+        x1d = np.zeros((nx,))
+        y1d = np.zeros((ny,))
+        
+        XYRES = xy2d.copy()
+        
+        for k in klevels:
+            
+            A = Filter10_Init(ny, eps)
+            for i in np.arange(nx):
+                y1d[:]     = xy2d[k,:,i]
+                XYRES[k,:,i] = Filter1D(y1d, eps, A, **kwargs)
+                
+        print("RaymondFilter10:  Finished the Y-PASS \n")
+                
+        for k in klevels:
+                
+            XYRES2 = XYRES.copy()
+            A = Filter10_Init(nx, eps)
+            for j in np.arange(ny):
+                XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
+        
+        tic = time.perf_counter()
+            
+        print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")
         
         return XYRES
 
