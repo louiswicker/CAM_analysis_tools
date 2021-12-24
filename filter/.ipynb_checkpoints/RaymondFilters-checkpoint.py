@@ -2,15 +2,7 @@ import numpy as np
 import sys as sys
 import time
 import scipy
-
-#---------------------------------------------------------------------------------------------
-
-def scale6npass10(eps10):
-    """ 
-    For a given eps for 10th order filter, this returns the eps value need for a 6-pass
-    6th order filter to have the same R(eps10) = 0.5 filter response
-    """
-    return .125 * 4**(np.log10(eps10))
+import my_timer
 
 #---------------------------------------------------------------------------------------------
 
@@ -56,30 +48,79 @@ def inverseRaymondResponse(Rvalue, wavenumber, order=6, npass=1):
     return (1.0 / Rvalue**(1.0/npass) - 1.0 )/(np.tan(k*np.pi/2)**order)
 
 #---------------------------------------------------------------------------------------------
+            
+def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, highpass=False, eps=None, **kwargs):
+    
+    """ 
+    Adapted from Raymond's original code and from example code on Program Creek.
+       
+    https://www.programcreek.com/python/example/97027/scipy.linalg.solve_banded [example 3]
+    
+    See RAYMOND, 1988, MWR, 116, 2132-2141
+    
+    Lou Wicker, Dec 2021 
 
-class TimerError(Exception):
-    """A custom exception used to report errors in use of Timer class"""
 
-class Timer:
-    def __init__(self):
-        self._start_time = None
-
-    def start(self):
-        """Start a new timer"""
-        if self._start_time is not None:
-            raise TimerError(f"Timer is running. Use .stop() to stop it")
-
-        self._start_time = time.perf_counter()
-
-    def stop(self):
-        """Stop the timer, and report the elapsed time"""
-        if self._start_time is None:
-            raise TimerError(f"Timer is not running. Use .start() to start it")
-
-        elapsed_time = time.perf_counter() - self._start_time
-        self._start_time = None
-        print(f"Elapsed time: {elapsed_time:0.4f} seconds")
-
+    This is the driver routine that can be used to choose a grid scale (units in dx)
+    and level of discrimination for the filtering.  This routine calls the other routines below
+    and is used to simply the calls the filtering.
+    
+        array:    1, 2, or 3D array to be filtered.
+        
+        dx:       the value in grid units where the response function for a single pass will be 
+                  the response value, e.g., a value of 12 means 12 dx will have a response value 
+                  of 0.9 (default) for a single pass.  To filter out below 10 dx, set value 
+                  of dx ~ 12.  The "dx and dy" values are considered dimensionless and equal 1.0.
+              
+        order:    the order of the filter - only 6 (6th order) and 10 (10th order) are valid.
+        
+        npass:    number of passes you want the filter to do.  2D filtering (for 2 and 3D arrays)
+                  passes are performed as a single 2D operation, and then repeated npass times.
+                  
+        response: this is the value of the response function for the [dx].  Tests show that this value
+                  should be about 0.7-0.9 for the 6th order filter with 5-10 passes to match the 
+                  10th order Raymond filter.
+        
+        fortran:  for the 6th order filter, there is Raymonds fortran code avaiable which is very fast.
+                  this is recommended - essentially 5-10 passes of the fortran 6th order will ~ 10th.
+                  
+        highpass: So while not perfectly equivalent, the returned array will be equal the original array minus
+                  the lowpass filter array. This then returns the field that was removed by the lowpass
+                  filtering, e.g., the high pass component.
+        
+        eps:      for testing and backward compatibilty, one can specify an eps bypassing the dx criteria
+                  
+        **kargs:  the only valid dictionary key is "klevels", which is only used in the 3D array filtering
+                  to speed the computation by only filtering a list of levels, e.g., k=[10,20,30].  Default is
+                  to do the entire array in 2D planes, looping through the first axis.
+    """
+    
+    if eps:
+        eps0 = eps
+    else:
+        eps0 = inverseRaymondResponse(response, [dx], order=order, npass=npass)
+    
+    if order == 6:
+        if fortran:
+            if highpass:
+                return array - RaymondFilter6F(array, eps0, npass = npass, **kwargs)
+            else:
+                return RaymondFilter6F(array, eps0, npass = npass, **kwargs)
+        else:
+            if highpass:
+                return array - RaymondFilter6(array, eps0, npass = npass, **kwargs)
+            else:
+                return RaymondFilter6(array, eps0, npass = npass, **kwargs)
+    if order == 10:
+        if highpass:
+            return array - RaymondFilter10(array, eps0, npass = npass, **kwargs)
+        else:
+            return RaymondFilter10(array, eps0, npass = npass, **kwargs)
+    
+    print("Filter order must be be 6 (6th) or 10 (10th) order...exiting \n")
+    
+    return None
+    
 #---------------------------------------------------------------------------------------------
             
 def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
@@ -285,21 +326,19 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
             RHS[NM2] =  0.1*EPS*( XY[NM1] - 2.0*XY[NM2] +     XY[NM3] )   
             RHS[NM1] = 0.0 
 
-            B = scipy.linalg.lu_factor(A.toarray())
+#             B = scipy.linalg.lu_factor(A.toarray())
 
-            XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
-            
-            print('X')
+#             XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
+        
 
-
-#            XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
+            XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
 
             return XF
 
     #---------------------------------------------------------------------------------------------
     # Code to do 1D or 2D input
 
-    if len(xy2d.shape) < 2:
+    if len(xy2d.shape) == 1:
         
         A = Filter6_Init(xy2d.shape[0], eps, **kwargs)
         
@@ -308,13 +347,10 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
         x_copy = xy2d[:].copy()
         for n in np.arange(npass):
             x_copy = Filter1D(x_copy.copy(), eps, A, **kwargs)
+        
         return x_copy
     
-    elif len(xy2d.shape) > 2:
-        print("RaymondFilter6:  3D filtering not implemented as of yet, exiting\n")
-        sys.exit(-1)
-        
-    else:
+    elif len(xy2d.shape) == 2:
     
         ny, nx = xy2d.shape
         
@@ -329,27 +365,59 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
         tic = time.perf_counter()
 
         for n in np.arange(npass):  # multiple pass capability
-            
-            tic = time.perf_counter()
-            
-            A = Filter6_Init(ny, eps, **kwargs)
-            
+                        
+            A = Filter6_Init(ny, eps, **kwargs) 
             for i in np.arange(nx):
                 y1d[:]    = xy_copy[:,i]
                 ytmp[:,i] = Filter1D(y1d, eps, A, **kwargs)
         
             A = Filter6_Init(nx, eps, **kwargs)
-            
             xtmp = ytmp.copy()
-            
             for j in np.arange(ny):
                 xy_copy[j,:] = Filter1D(xtmp[j,:], eps, A, **kwargs)
         
-            toc = time.perf_counter()
+        toc = time.perf_counter()
             
-            print(f"J-loop {tic - toc:0.4f} seconds")
+        print(f"Loops for 2D array took {toc - tic:0.4f} seconds")
         
         return xy_copy
+        
+    elif len(xy2d.shape) == 3:
+        
+        print("RaymondFilter6:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
+        print("RaymondFilter6:  NPASS:  %d \n" % npass)
+        
+        if 'klevels' in kwargs:
+            klevels = kwargs.get('klevels')
+            print("RaymondFilter6: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+        else:
+            klevels = [k for k in np.arange(nz)]
+
+        toc = time.perf_counter()
+        
+        nz, ny, nx = xy2d.shape
+        
+        XYRES = xy2d.copy()
+        
+        for n in np.arange(npass):  # multiple pass capability
+            
+            XYRES2 = XYRES.copy()
+            A = Filter6_Init(ny, eps)
+            for k in klevels:
+                for i in np.arange(nx):
+                    XYRES[k,:,i] = Filter1D(XYRES2[k,:,i], eps, A, **kwargs)
+                                   
+            XYRES2 = XYRES.copy()
+            A = Filter6_Init(nx, eps)
+            for k in klevels:
+                for j in np.arange(ny):
+                    XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
+        
+        tic = time.perf_counter()
+            
+        print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")
+        
+        return XYRES
 
 #---------------------------------------------------------------------------------------------
             
@@ -408,13 +476,20 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
         toc = time.perf_counter()
         
         print("RaymondFilter6F:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
+        print("RaymondFilter6F:  NPASS:  %d \n" % npass)
         
+        if 'klevels' in kwargs:
+            klevels = kwargs.get('klevels')
+            print("RaymondFilter6F: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+        else:
+            klevels = [k for k in np.arange(xy2d.shape[0])]
+
         xy_copy = xy2d.copy()
         
         for n in np.arange(npass):  # multiple pass capability
             
-            for k in np.arange(xy2d.shape[0]):
-                xy = xy_copy[k].copy()
+            for k in klevels:
+                xy = xy_copy[k]
                 xy_copy[k] = raymond2d_lowpass(xy,eps)
                       
         tic = time.perf_counter()
@@ -425,7 +500,7 @@ def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
 
 #---------------------------------------------------------------------------------------------
     
-def RaymondFilter10(xy2d, eps, **kwargs):
+def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
     """
     Driver for Raymond's filters for 1 and 2D arrays
     
@@ -690,10 +765,12 @@ def RaymondFilter10(xy2d, eps, **kwargs):
         toc = time.perf_counter()
         print(f"J-loop {toc - tic:0.4f} seconds")
         
+        return XYRES
+        
     elif len(xy2d.shape) == 3:
         
         print("RaymondFilter10:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
-        print("RaymondFilter10:  NPASS = 1 is only implementation!!! \n")
+        print("RaymondFilter10:  NPASS: %d \n" % npass)
         
         if 'klevels' in kwargs:
             klevels = kwargs.get('klevels')
@@ -701,31 +778,26 @@ def RaymondFilter10(xy2d, eps, **kwargs):
         else:
             klevels = [k for k in np.arange(nz)]
 
-        toc = time.perf_counter()
-        
         nz, ny, nx = xy2d.shape
         
-        x1d = np.zeros((nx,))
-        y1d = np.zeros((ny,))
-        
+        toc = time.perf_counter()
+                
         XYRES = xy2d.copy()
         
-        for k in klevels:
+        for n in np.arange(npass):  # multiple pass capability
             
+            XYRES2 = XYRES.copy()
             A = Filter10_Init(ny, eps)
-            for i in np.arange(nx):
-                y1d[:]     = xy2d[k,:,i]
-                XYRES[k,:,i] = Filter1D(y1d, eps, A, **kwargs)
-                
-        print("RaymondFilter10:  Finished the Y-PASS \n")
-                
-        for k in klevels:
-                
+            for k in klevels:
+                for i in np.arange(nx):
+                    XYRES[k,:,i] = Filter1D(XYRES2[k,:,i], eps, A, **kwargs)
+                                   
             XYRES2 = XYRES.copy()
             A = Filter10_Init(nx, eps)
-            for j in np.arange(ny):
-                XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
-        
+            for k in klevels:
+                for j in np.arange(ny):
+                    XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
+                
         tic = time.perf_counter()
             
         print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")

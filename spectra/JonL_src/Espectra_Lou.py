@@ -134,7 +134,7 @@ for tindex,time in enumerate(times):
    #if arguments.rst:
    xdis = np.arange(0,iMax)*dx #les.variables['xh'][xmin:xmax]
    ydis = np.arange(0,jMax)*dy #les.variables['yh'][ymin:ymax]
-   mMax = int(iMax / 2)
+   mMax = int(Max / 2)
    nMax = int(jMax / 2)
    iter = 1
 
