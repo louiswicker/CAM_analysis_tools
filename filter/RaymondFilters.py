@@ -49,24 +49,76 @@ def inverseRaymondResponse(Rvalue, wavenumber, order=6, npass=1):
 
 #---------------------------------------------------------------------------------------------
             
-def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, **kwargs):
+def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, highpass=False, eps=None, **kwargs):
+    
     """ 
+    Adapted from Raymond's original code and from example code on Program Creek.
+       
+    https://www.programcreek.com/python/example/97027/scipy.linalg.solve_banded [example 3]
+    
+    See RAYMOND, 1988, MWR, 116, 2132-2141
+    
+    Lou Wicker, Dec 2021 
+
+
     This is the driver routine that can be used to choose a grid scale (units in dx)
     and level of discrimination for the filtering.  This routine calls the other routines below
     and is used to simply the calls the filtering.
+    
+        array:    1, 2, or 3D array to be filtered.
+        
+        dx:       the value in grid units where the response function for a single pass will be 
+                  the response value, e.g., a value of 12 means 12 dx will have a response value 
+                  of 0.9 (default) for a single pass.  To filter out below 10 dx, set value 
+                  of dx ~ 12.  The "dx and dy" values are considered dimensionless and equal 1.0.
+              
+        order:    the order of the filter - only 6 (6th order) and 10 (10th order) are valid.
+        
+        npass:    number of passes you want the filter to do.  2D filtering (for 2 and 3D arrays)
+                  passes are performed as a single 2D operation, and then repeated npass times.
+                  
+        response: this is the value of the response function for the [dx].  Tests show that this value
+                  should be about 0.7-0.9 for the 6th order filter with 5-10 passes to match the 
+                  10th order Raymond filter.
+        
+        fortran:  for the 6th order filter, there is Raymonds fortran code avaiable which is very fast.
+                  this is recommended - essentially 5-10 passes of the fortran 6th order will ~ 10th.
+                  
+        highpass: So while not perfectly equivalent, the returned array will be equal the original array minus
+                  the lowpass filter array. This then returns the field that was removed by the lowpass
+                  filtering, e.g., the high pass component.
+        
+        eps:      for testing and backward compatibilty, one can specify an eps bypassing the dx criteria
+                  
+        **kargs:  the only valid dictionary key is "klevels", which is only used in the 3D array filtering
+                  to speed the computation by only filtering a list of levels, e.g., k=[10,20,30].  Default is
+                  to do the entire array in 2D planes, looping through the first axis.
     """
     
-    eps = inverseRaymondResponse(response, [dx], order=order, npass=npass)
+    if eps:
+        eps0 = eps
+    else:
+        eps0 = inverseRaymondResponse(response, [dx], order=order, npass=npass)
     
     if order == 6:
         if fortran:
-            return RaymondFilter6F(array, eps, npass = npass, **kwargs)
+            if highpass:
+                return array - RaymondFilter6F(array, eps0, npass = npass, **kwargs)
+            else:
+                return RaymondFilter6F(array, eps0, npass = npass, **kwargs)
         else:
-            return RaymondFilter6(array, eps, npass = npass, **kwargs)
+            if highpass:
+                return array - RaymondFilter6(array, eps0, npass = npass, **kwargs)
+            else:
+                return RaymondFilter6(array, eps0, npass = npass, **kwargs)
     if order == 10:
-        return RaymondFilter10(array, eps, npass = npass, **kwargs)
+        if highpass:
+            return array - RaymondFilter10(array, eps0, npass = npass, **kwargs)
+        else:
+            return RaymondFilter10(array, eps0, npass = npass, **kwargs)
     
     print("Filter order must be be 6 (6th) or 10 (10th) order...exiting \n")
+    
     return None
     
 #---------------------------------------------------------------------------------------------
