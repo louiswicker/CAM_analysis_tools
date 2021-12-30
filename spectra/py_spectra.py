@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 #-------------------------------------------------------------------------------------
 # 2D Spectra
 
-def get_spectra2d_rad(fld):
+def get_spectra2d_rad(fld, **kwargs):
     """
     Returns 1D power spectra from a 2D field where 2D spectrum is averaged into radial bins.
     There are several caveats.  First, the shape of the fld array must be square.  If it is not square, 
@@ -82,7 +82,7 @@ def get_spectra2d_rad(fld):
 #-------------------------------------------------------------------------------------
 # 3D Spectra
 
-def get_spectra3d(fld):
+def get_spectra3d(fld, func = get_spectra2d_rad, **kwargs):
     """
     Returns average spectra from 3D data set where the power spectra is averaged along the
     first dimension.
@@ -100,7 +100,7 @@ def get_spectra3d(fld):
         Abins = []
         
         for k in np.arange(fld.shape[0]):
-            kvals, A, waven = py_spectra2d(fld[k])
+            kvals, A, waven = func(fld[k], func=func, **kwargs)
             Abins.append(A)
             
         Abins = np.asarray(Abins)
@@ -157,17 +157,25 @@ def plot_spectra(fld, func = get_spectra2d_rad, title = None, ax = None, PScolor
             return "%2.1f" % (2.0/x)
         else:
             return r'$\infty$'
-    
-    kvals, Abins, waven = func(fld, **kwargs)
+        
+    if len(fld.shape) < 3:  
+        kvals, Abins, waven = func(fld, **kwargs)
+        
+    else:
+        kvals, Abins, waven = get_spectra3d(fld, func = func, **kwargs)
+        
     
     if title == None:
         title = 'Field'
     
-    if ax == None or len(ax) < 2:
+    if ax == None:
         fig, axes = plt.subplots(1, 2, constrained_layout=True,figsize=(20,8))
         
         axes[1].imshow(fld[::-1])
         axes[1].set_title(title, fontsize=18)
+        
+    else:
+        axes = ax
         
     if 'loglog' in kwargs:
         axes[0].loglog(waven, Abins, color=PScolor)
@@ -209,4 +217,5 @@ def plot_spectra(fld, func = get_spectra2d_rad, title = None, ax = None, PScolor
         axes[0].set_ylim(kwargs.get('ylim'))
 
     plt.suptitle("Power Spectra", fontsize=18)
-    plt.show()
+    if ax == None: 
+        plt.show()
