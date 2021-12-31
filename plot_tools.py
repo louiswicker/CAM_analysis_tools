@@ -78,7 +78,7 @@ def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='vir
         print(f'\nPlot Lat Min: %4.1f  Lat Max:  %4.1f' % (lat_min, lat_max))
         print(f'\nPlot Lon Min: %4.1f  Lon Max:  %4.1f' % (lon_min, lon_max))
         
-    frame_title = "FHOUR: %2.2i %s at Pres=%3.0f mb \n Max: %3.1f   Min: %4.2f" % (fhour, var, pres[klevel], data.max(), data.min())
+    frame_title = "FHOUR: %2.2i %s at Pres=%3.0f mb for %s \n Max: %3.1f   Min: %4.2f" % (fhour, var, pres[klevel], title, data.max(), data.min())
     
     if cartopy:
         plot = axes.pcolormesh(lons, lats, data, shading='auto', vmax=vmax, vmin=vmin, cmap=colormap, transform=ccrs.PlateCarree())
