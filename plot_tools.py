@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
-
 #---------------------------------------------------------------------------------------------------------------
 
 def init_cartopy_plot(ncols=1, nrows=1, figsize=(10,10)):
