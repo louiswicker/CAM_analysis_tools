@@ -7,9 +7,104 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 #-------------------------------------------------------------------------------------
+# 2D Spectra from the fourier spectrum package from jfrob27's pywaven package
+
+def get_spectra2D_CWT(fld, print_info=True, zeromean=True, **kwargs):
+    """
+    Returns 1D power spectra from a 2D field using continuus wavelets
+        
+    Input:  2D floating pont array
+    
+    Returns:  kvals:  mean wavenumber in each bin
+              PSbins: power spectra which has been binned into kbins
+              waven:  wavenumber (0 - 1) in non-dimensional space.
+    """
+    
+    from pywavan import fan_trans
+
+    if print_info:
+        print("\n------------------------")
+        print("get_spectra2D_PYWAVAN powspec called\n")
+
+    nmax = np.max(fld.shape)
+        
+    fld2 = fld.copy()
+    
+    if 'scales' in kwargs:
+        scales = kwargs.get('scales')
+    else:
+        scales = np.zeros((nmax//2,))
+        for n in np.arange(1,nmax//2):  
+            scales[n] = (n) / (nmax//2 - 1)
+        
+    wt, H11a, kvals, PSbins, q = fan_trans(fld2, reso=1.0, q=0, qdyn=False, scales=scales, **kwargs)
+    
+    kbins = np.arange(0.5, (nmax+1)//2-1, 1.)
+            
+    if print_info:
+            print("------------------------\n")
+    
+    return kbins, PSbins**2, 2*kvals
+
+#-------------------------------------------------------------------------------------
+# 2D Spectra from the fourier spectrum package from jfrob27's pywaven package
+
+def get_spectra2D_POWSPEC(fld, print_info=True, zeromean=True, **kwargs):
+    """
+    Returns 1D power spectra from a 2D field 
+        
+    Input:  2D floating pont array
+    
+    Returns:  kvals:  mean wavenumber in each bin
+              PSbins: power spectra which has been binned into kbins
+              waven:  wavenumber (0 - 1) in non-dimensional space.
+    """
+    
+    from pywavan import powspec
+
+    if print_info:
+        print("\n------------------------\n")
+        print("get_spectra2D_POWSPEC powspec called\n")
+
+    ny, nx = fld.shape
+        
+    if nx != ny:
+        
+        if print_info:
+            print("get_spectra2D_RAD: can only analyze process same wavenumbers in X & Y, nx: %d  ny: %d\n" %(nx,ny))
+            print("get_spectra2D_RAD: will sample a square domain using nx/2, ny/2 center point\n")
+        
+        if nx > ny:
+            nny = int(ny//2) 
+            nnx = int(nx//2)
+            fld2 = fld[0:ny,-nny+nnx:nnx+nny]
+            nx = ny
+        if nx < ny:
+            nny = int(ny//2) 
+            nnx = int(nx//2)
+            fld2 = fld[-nnx+nny:nny+nnx,0:nx]
+            ny = nx
+    else:
+        fld2 = fld.copy()
+        
+    waven, PSbins = powspec(fld2, reso=1., zeromean=zeromean)
+
+    kbins = np.arange(0.5, (nx+1)//2-1, 1.)
+    kvals = 0.5 * (kbins[1:] + kbins[:-1])
+    wavenumber = 2*(kvals-1)/nx
+
+    PSbins = PSbins * np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+            
+    if print_info:
+            print("------------------------\n")
+    
+    return kbins, PSbins, 2*waven
+
+
+#-------------------------------------------------------------------------------------
 # 2D Spectra
 
-def get_spectra2d_rad(fld, print_info=True, **kwargs):
+def get_spectra2D_RAD(fld, print_info=True, zeromean=True, **kwargs):
     """
     Returns 1D power spectra from a 2D field where 2D spectrum is averaged into radial bins.
     There are several caveats.  First, the shape of the fld array must be square.  If it is not square, 
@@ -29,15 +124,15 @@ def get_spectra2d_rad(fld, print_info=True, **kwargs):
 
     if print_info:
         print("\n------------------------")
-        print("get_spectra2d_rad called\n")
+        print("get_spectra2D_RAD called\n")
 
     ny, nx = fld.shape
         
     if nx != ny:
         
         if print_info:
-            print("get_spectra2d_rad: can only analyze process same wavenumbers in X & Y, nx: %d  ny: %d\n" %(nx,ny))
-            print("get_spectra2d_rad: will sample a square domain using nx/2, ny/2 center point\n")
+            print("get_spectra2D_RAD: can only analyze process same wavenumbers in X & Y, nx: %d  ny: %d\n" %(nx,ny))
+            print("get_spectra2D_RAD: will sample a square domain using nx/2, ny/2 center point\n")
         
         if nx > ny:
             nny = int(ny//2) 
@@ -51,6 +146,9 @@ def get_spectra2d_rad(fld, print_info=True, **kwargs):
             ny = nx
     else:
         fld2 = fld.copy()
+        
+    if zeromean == True:
+        fld2 -= np.mean(fld2)
             
     # now need to make the number of points even...
     
@@ -59,9 +157,9 @@ def get_spectra2d_rad(fld, print_info=True, **kwargs):
     fourier_image = np.fft.fftn(fld2[0:ny,0:nx])
         
     if print_info: 
-        print("get_spectra2dr1: Field has [even] dimensions nx: %d  ny: %d\n" %(nx,ny))
+        print("get_spectra2D_RAD: Field has [even] dimensions nx: %d  ny: %d\n" %(nx,ny))
             
-    fourier_amplitudes = np.abs(fourier_image)**2
+    fourier_amplitudes = np.abs(fourier_image)**2 / (nx*ny)
 
     kfreq   = np.fft.fftfreq(nx) * nx
     kfreq2D = np.meshgrid(kfreq, kfreq)
@@ -82,11 +180,10 @@ def get_spectra2d_rad(fld, print_info=True, **kwargs):
     
     return kvals, PSbins, wavenumber
 
-
 #-------------------------------------------------------------------------------------
 # 1D Spectra
 
-def get_spectra2d_avg(fld, axis=1, print_info=True, **kwargs):
+def get_spectra2D_AVG(fld, axis=1, print_info=True, zeromean=True, **kwargs):
     """
     Returns the average power spectra from a 2D field along one dimension averaging over the second direction.
     
@@ -99,16 +196,23 @@ def get_spectra2d_avg(fld, axis=1, print_info=True, **kwargs):
     
     if print_info: 
         print("\n------------------------")
-        print("get_spectra2d_avg called")
+        print("get_spectra2D_AVG called")
         print("------------------------\n")
 
     # now need to make the number of points even...
 
     ny, nx = fld.shape
     nx     = 2*(nx//2)
-    ny     = 2*(ny//2)   
+    ny     = 2*(ny//2)
+    
     fld2   = fld[0:ny,0:nx].copy()
     
+    if zeromean == True:
+        fld2 -= np.mean(fld2)
+    
+    if print_info: 
+        print("get_spectra2D_AVG: Field has [even] dimensions nx: %d  ny: %d\n" %(nx,ny))
+
     # Now pick an axis to average over
 
     nx = fld2.shape[axis]
@@ -119,7 +223,7 @@ def get_spectra2d_avg(fld, axis=1, print_info=True, **kwargs):
     
     fourier_image = np.fft.fft(fld2, axis = axis)
     
-    fourier_amplitudes = (np.abs(fourier_image)**2).mean(axis = avg_axis)
+    fourier_amplitudes = (np.abs(fourier_image)**2).mean(axis = avg_axis) / nx
     
     kfreq   = np.fft.fftfreq(nx) * nx
     
@@ -136,7 +240,7 @@ def get_spectra2d_avg(fld, axis=1, print_info=True, **kwargs):
 #-------------------------------------------------------------------------------------
 # 3D Spectra
 
-def get_spectraND(fld, func = get_spectra2d_rad, **kwargs):
+def get_spectraND(fld, func = get_spectra2D_RAD, **kwargs):
     """
     Returns average spectra from ND data set where the power spectra computed along
     the last two dimensions (often assumed to be x & y).  The input array can have
@@ -164,7 +268,7 @@ def get_spectraND(fld, func = get_spectra2d_rad, **kwargs):
         fld3d = np.reshape(fld.copy(), fshape[:start] + (-1,) + fshape[start+count:])
         
         if fld.ndim > 3:
-            print("get_spectraND:  Reshaped array so that out dimension is %d\n" % fld3d.shape[0])
+            print("get_spectraND:  Reshaped array so that spectra averaged over outer dimension: %d\n" % fld3d.shape[0])
 
         Abins = []
         
@@ -178,7 +282,7 @@ def get_spectraND(fld, func = get_spectra2d_rad, **kwargs):
 #-------------------------------------------------------------------------------------
 # Plot spectral
 
-def plot_spectra(fld, func = get_spectra2d_rad, title = None, ax = None, PScolor='k', **kwargs):
+def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PScolor='k', ptitle='Power Spectra', loglog=1, **kwargs):
     
     import matplotlib.ticker as mticker
     
@@ -193,33 +297,38 @@ def plot_spectra(fld, func = get_spectra2d_rad, title = None, ax = None, PScolor
         
     else:
         kvals, Abins, waven = get_spectraND(fld, func = func, **kwargs)
-        
-    
-    if title == None:
-        title = 'Field'
+
+    if 'debug' in kwargs:
+        print('kvals: ',kvals.shape,kvals)
+        print('PS: ',Abins.shape,Abins)
+        print('wavenumber: ',waven.shape,waven)
+
+    if legend == None:
+        legend = 'Field'
     
     if ax == None:
         fig, axes = plt.subplots(1, 2, constrained_layout=True,figsize=(20,8))
         
         axes[1].imshow(fld[::-1])
-        axes[1].set_title(title, fontsize=18)
+        axes[1].set_title(ptitle, fontsize=18)
         
     else:
         axes = ax
         
-    if 'loglog' in kwargs:
+    if loglog:
         axes[0].loglog(waven, Abins, color=PScolor)
         axes[0].set_xlim(2.0/waven.shape[0], 1.0)
 
-        axes[0].annotate("%s\nLog Power Scale" % title, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        axes[0].annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
         axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(update_ticks))
         
         
         ylim = axes[0].get_ylim()
+        
         if 'ylabels' in kwargs:
             ylabel = kwargs.get('ylabel')
         else:
-            ylabel = 10.
+            ylabel = 10
         
         xoffset = [0.01, 0.0075, 0.005, 0.0035, 0.0025, 0.001]
         
@@ -238,14 +347,14 @@ def plot_spectra(fld, func = get_spectra2d_rad, title = None, ax = None, PScolor
             axes[0].annotate(r"%d" % int(w), xy = (2.0/w-0.01, -0.035), xycoords='axes fraction', color='k',fontsize=12)
             axes[0].axvline(x = 2.0/w-0.0075, color = 'grey', label = 'axvline - full height')
             
-        axes[0].annotate("%s\nLinear Power Scale" % title, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        axes[0].annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
 
     axes[0].set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=16)
-    
     
     if 'ylim' in kwargs:
         axes[0].set_ylim(kwargs.get('ylim'))
 
-    plt.suptitle("Power Spectra", fontsize=18)
+    plt.title(ptitle, fontsize=18)
+    
     if ax == None: 
         plt.show()
