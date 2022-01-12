@@ -343,7 +343,6 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
             y0   = ylim[1]/(2.)
             y1   = np.exp(np.log(y0) - 5./3. * dlnx)
             ypt  = [y0,y1]
-            print(ypt)
             axes[0].loglog(xpt, ypt, color='red',linestyle='-.',label='k$^{-5/3}$')
 
     else:
