@@ -76,6 +76,7 @@ def grbVar_to_cube(grb_obj, type='isobaricInhPa'):
 
     for k in range(n_levels):
         cube[k,:,:] = grb_obj[indexes[k]].values
+        #print("k %d ind %d Level %d obj_level %d:    Min %4.1f      Max %4.1f"%(k, indexes[k], levels[indexes[k]], grb_obj[indexes[k]].level, np.min(cube[k,:,:]), np.max(cube[k,:,:])))
 
     return {'data' : np.float32(cube), 'units' : grb_obj[0]['units'], 'levels' : levels[indexes],
             'date' : grb_obj[0].date, 'fcstStart' : grb_obj[0].time, 'fcstTime' : grb_obj[0].step}
@@ -252,17 +253,20 @@ def hrrr_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''],
     
     # Special thanks to Scott Ellis of DOE for sharing codes for reading grib2
     
-    default = {            #  Grib2 name                 / No. of Dims /  Type
+    default = {            #  Grib2 name                 / No. of Dims /  Type   / bottomLevel / paramCategory / paramNumber
                'TEMP':     ['Temperature',                           3, 'hybrid'],
                'OMEGA':    ['Vertical velocity',                     3, 'hybrid'],
                'U':        ['U component of wind',                   3, 'hybrid'],
                'V':        ['V component of wind',                   3, 'hybrid'],
-               'UH':       [1018,                                    2, 'hybrid'],
-               'CREF':     [1008,                                    2, 'hybrid'],
+               'GPH':      ['Geopotential Height',                   3,  'hybrid'],
+               'UH':       ['unknown',                               2,  'hybrid', 2000,         7,              199],
+               'CREF':     ['Maximum/Composite radar reflectivity',  2,  'atmosphere'],
+               'HGT':      ['Orography',                             2,  'surface'],
+     
                }
 
     if var_list != ['']:
-        variables = {k: default[k] for k in default.keys() & set(var_list)}  # yea, I stole this....
+        variables = {k: var_list[k] for k in var_list.keys() & set(var_list)}  # yea, I stole this....
     else:
         variables = default
 
@@ -279,6 +283,7 @@ def hrrr_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''],
     # Get lat lons
 
     lats, lons = grbFile_attr(grb_file)
+    if (np.amax(lons) > 180.0): lons = lons - 360.0
 
     pres = None
 
@@ -295,7 +300,10 @@ def hrrr_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''],
         print('Reading my variable: ',key, 'from GRIB file variable: %s\n' % (variables[key][0]))
 
         if type(variables[key][0]) == type('1'):
-            grb_var = grb_file.select(name=variables[key][0])
+            if len(variables[key]) == 3:
+                grb_var = grb_file.select(name=variables[key][0],typeOfLevel=variables[key][2])
+            else:
+                grb_var = grb_file.select(bottomLevel=variables[key][3],parameterCategory=variables[key][4],parameterNumber=variables[key][5])
         else:
             grb_var = [grb_file.message(variables[key][0])]
 
@@ -371,7 +379,7 @@ def hrrr_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''],
     # add some file and directory attributes
     
     dir, base = os.path.split(file)
-    outfilename = os.path.join(dir, '%s_%8.8i%2.2i_F%2.2i.nc' % (ds_conus.attrs['gridType'], date, fcstStart, fcstHour))
+    outfilename = os.path.join(dir, '%s_%08d%02d_F%02d.nc' % (ds_conus.attrs['gridType'], date, fcstStart, fcstHour))
         
     ds_conus.attrs['srcdir']   = dir
     ds_conus.attrs['filename'] = os.path.basename(outfilename)
@@ -393,14 +401,14 @@ def fv3_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''], 
     # Special thanks to Scott Ellis of DOE for sharing codes for reading grib2
     
     default = {             #  Grib2 name                 / No. of Dims /  Type
-               'TEMP':     ['Temperature',                 3, 'isobaricInPa'],
-               'SFC_HGT':  ['Orography',                   2, 'isobaricInPa'],
-               'HGT':      ['Geopotential Height',         3, 'isobaricInPa'],              
-               'W':        ['Geometric vertical velocity', 3, 'isobaricInPa'],
-               'U':        ['U component of wind',         3, 'isobaricInPa'],
-               'V':        ['V component of wind',         3, 'isobaricInPa'],
-               'UH':       ['Updraft Helicity',            2, 'isobaricInPa'],
-               'CREF':     ['Derived radar reflectivity',  3, 'hybrid'      ],
+               'TEMP':     ['Temperature',                 3, 'isobaricInhPa'],
+               'HGT':      ['Orography',                   2, 'surface'],
+               'GPH':      ['Geopotential Height',         3, 'isobaricInhPa'],              
+               'W':        ['Geometric vertical velocity', 3, 'isobaricInhPa'],
+               'U':        ['U component of wind',         3, 'isobaricInhPa'],
+               'V':        ['V component of wind',         3, 'isobaricInhPa'],
+               'UH':       ['unknown',                               2,  'isobaricInhPa', 2000,         7,              199],
+               'CREF':     ['Maximum/Composite radar reflectivity',  2, 'atmosphereSingleLayer'      ],
                }
 
     if var_list != ['']:
@@ -422,29 +430,26 @@ def fv3_grib_read_variable(file, sw_corner=None, ne_corner=None, var_list=[''], 
 
     lats, lons = grbFile_attr(grb_file)
 
+    if np.amax(lons) > 180.0: lons = lons - 360.0
+
     for n, key in enumerate(variables):
 
         print('Reading my variable: ', key, 'from GRIB variable: %s\n' % (variables[key][0]))
 
         if type(variables[key][0]) == type('1'):
-            grb_var = grb_file.select(name=variables[key][0])
+            if len(variables[key]) == 3:
+                grb_var = grb_file.select(name=variables[key][0],typeOfLevel=variables[key][2])
+            else:
+                grb_var = grb_file.select(bottomLevel=variables[key][3],parameterCategory=variables[key][4],parameterNumber=variables[key][5])
         else:
             grb_var = [grb_file.message(variables[key][0])]
         
         if variables[key][1] == 3:
-
-            if key == 'CREF':  # this is a painful hack because of grib weirdness
-                cube = grbVar_to_cube(grb_var, type=None)
-                new = xr.DataArray( cube['data'].max(axis=0), dims=['ny','nx'], 
-                                    coords={"lats": (["ny","nx"], lats),
-                                            "lons": (["ny","nx"], lons) } )
-            else:
-                cube = grbVar_to_cube(grb_var, type='isobaricInhPa')
-                pres = cube['levels']
-               
-                new = xr.DataArray( cube['data'], dims=['nz','ny','nx'], coords={'pres': (['nz'], pres),
-                                                                                 "lons": (["ny","nx"], lons),
-                                                                                 "lats": (["ny","nx"], lats)} )      
+            cube = grbVar_to_cube(grb_var, type='isobaricInhPa')
+            pres = cube['levels']
+            new = xr.DataArray( cube['data'], dims=['nz','ny','nx'], coords={'pres': (['nz'], pres),
+                                                                             "lons": (["ny","nx"], lons),
+                                                                             "lats": (["ny","nx"], lats)} )      
         if variables[key][1] == 2:
             cube = grbVar_to_slice(grb_var)
             new = xr.DataArray( cube['data'], dims=['ny','nx'], coords={"lons": (["ny","nx"], lons),
