@@ -91,6 +91,31 @@ def title_string(file, level, label, wmax, wmin, eps=None):
         return ("%s at level=%2.2i \n %s-Max: %3.1f     %s-Min: %4.2f" % (file, level, label, wmax, label, wmin))
 
 #--------------------------------------------------------------------------------------------------
+# Add hour to xarray dataset from filename
+
+def add_fhour(ds):
+    
+    filename = ds.encoding["source"].split("_")
+    
+    init_time = int(filename[-2])
+    fhour     = int(filename[-1][-5:-3])
+        
+    ds.coords['fhour'] = fhour
+    ds.coords['init_time'] = init_time
+    
+    return ds
+    
+#--------------------------------------------------------------------------------------------------
+# Wrapper probably not necessary, but here you go...kwargs might be helpful
+
+def open_mfdataset_list(data_dir, pattern):
+    """
+    Use xarray.open_mfdataset to read multiple netcdf files from a list.
+    """
+    filelist = os.path.join(data_dir,pattern)
+    return xr.open_mfdataset(filelist, preprocess=add_fhour, combine='nested', concat_dim=['fhour'],parallel=True)
+
+#--------------------------------------------------------------------------------------------------
 # Quick W plot to figure out where stuff is
 
 def quickplotgrib(file, klevel= 20, cmap = 'turbo', ax=None, filetype='hrrr', \
