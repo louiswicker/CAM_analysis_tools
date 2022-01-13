@@ -322,8 +322,7 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
 
         axes[0].annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
         axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(update_ticks))
-        
-        
+           
         ylim = axes[0].get_ylim()
         
         if 'ylabels' in kwargs:
