@@ -56,6 +56,9 @@ def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='vir
         fhour = int(len(ds.coords['fhour'])) - 1
                
     data = ds.W.isel(fhour=fhour, nz=klevel)
+    
+    if data.ndim > 2:
+        data = data[0]
 
     if coords == 'latlonpres':
         lats = ds.lats
