@@ -39,7 +39,7 @@ def add_colorbar(plot, ax):
 #---------------------------------------------------------------------------------------------------------------
 
 def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='viridis', \
-                       vmax=20, vmin=-10., newlat=None, newlon=None, ax = None, cartopy=True, coords='latlonpres'):
+                       vmax=20, vmin=-10., contours=None, newlat=None, newlon=None, ax = None, cartopy=True, coords='latlonpres'):
      
     if ax != None:
         axes = ax
@@ -84,8 +84,18 @@ def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='vir
     
     if cartopy:
         plot = axes.pcolormesh(lons, lats, data, shading='auto', vmax=vmax, vmin=vmin, cmap=colormap, transform=ccrs.PlateCarree())
+        
+        if contours != None:
+            axes.contour(lons, lats, data, levels=contours, colors=['blue', 'red'], linewidth=0.5, transform=ccrs.PlateCarree())
+            
+        axes.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        
     else:
         plot = axes.pcolormesh(lons, lats, data, shading='auto', vmax=vmax, vmin=vmin, cmap=colormap)
+        
+        if contours != None:
+            axes.contour(lons, lats, data, levels=contours, colors=['blue', 'red'], linewidth=0.5, )
+
         
     plt.colorbar(plot, ax=axes, shrink=0.75)
     
