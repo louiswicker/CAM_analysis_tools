@@ -1,4 +1,4 @@
-# Inputs for case studies
+# Inputs for all the case studies
 
 input_all =  {
               "filtered_filename": "",
