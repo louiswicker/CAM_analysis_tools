@@ -17,12 +17,12 @@ def init_cartopy_plot(ncols=1, nrows=1, figsize=(10,10)):
     if nrows*ncols > 1:
         for ax in axes:
             ax.gridlines(draw_labels=True, linewidth=2, color='gray', alpha=0.5, linestyle='--')
-            ax.add_feature(cfeature.BORDERS, linestyle=':')
-            ax.add_feature(cfeature.STATES, linestyle=':')
+            ax.add_feature(cfeature.BORDERS, linestyle='solid', edgecolor='black', zorder=10)
+            ax.add_feature(cfeature.STATES, linestyle='solid', edgecolor='black', zorder=10)
     else:
         axes.gridlines(draw_labels=True, linewidth=2, color='gray', alpha=0.5, linestyle='--')
-        axes.add_feature(cfeature.BORDERS, linestyle=':')
-        axes.add_feature(cfeature.STATES, linestyle=':')
+        axes.add_feature(cfeature.BORDERS, linestyle='solid', edgecolor='black', zorder=10)
+        axes.add_feature(cfeature.STATES, linestyle='solid', edgecolor='black', zorder=10)
 
     return fig, axes
 
@@ -39,7 +39,7 @@ def add_colorbar(plot, ax):
 #---------------------------------------------------------------------------------------------------------------
 
 def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='viridis', \
-                       vmax=20, vmin=-10., newlat=None, newlon=None, ax = None, cartopy=True, coords='latlonpres'):
+                       vmax=20, vmin=-10., contours=None, newlat=None, newlon=None, ax = None, cartopy=True, coords='latlonpres'):
      
     if ax != None:
         axes = ax
@@ -84,8 +84,18 @@ def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='vir
     
     if cartopy:
         plot = axes.pcolormesh(lons, lats, data, shading='auto', vmax=vmax, vmin=vmin, cmap=colormap, transform=ccrs.PlateCarree())
+        
+        if contours != None:
+            axes.contour(lons, lats, data, levels=contours, colors=['blue', 'red'], linewidth=0.5, transform=ccrs.PlateCarree())
+            
+        axes.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
+        
     else:
         plot = axes.pcolormesh(lons, lats, data, shading='auto', vmax=vmax, vmin=vmin, cmap=colormap)
+        
+        if contours != None:
+            axes.contour(lons, lats, data, levels=contours, colors=['blue', 'red'], linewidth=0.5, )
+
         
     plt.colorbar(plot, ax=axes, shrink=0.75)
     
