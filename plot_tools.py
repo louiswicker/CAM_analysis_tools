@@ -17,12 +17,12 @@ def init_cartopy_plot(ncols=1, nrows=1, figsize=(10,10)):
     if nrows*ncols > 1:
         for ax in axes:
             ax.gridlines(draw_labels=True, linewidth=2, color='gray', alpha=0.5, linestyle='--')
-            ax.add_feature(cfeature.BORDERS, linestyle=':')
-            ax.add_feature(cfeature.STATES, linestyle=':')
+            ax.add_feature(cfeature.BORDERS, linestyle='solid', edgecolor='black', zorder=10)
+            ax.add_feature(cfeature.STATES, linestyle='solid', edgecolor='black', zorder=10)
     else:
         axes.gridlines(draw_labels=True, linewidth=2, color='gray', alpha=0.5, linestyle='--')
-        axes.add_feature(cfeature.BORDERS, linestyle=':')
-        axes.add_feature(cfeature.STATES, linestyle=':')
+        axes.add_feature(cfeature.BORDERS, linestyle='solid', edgecolor='black', zorder=10)
+        axes.add_feature(cfeature.STATES, linestyle='solid', edgecolor='black', zorder=10)
 
     return fig, axes
 
