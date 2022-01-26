@@ -26,6 +26,8 @@ input_all =  {
                         }
               }
 
+# Input for a single run
+
 input_single =  {
               "filtered_filename": "",
               "filter_dx":          12,
@@ -49,5 +51,5 @@ input_4May = {
               "input_dir":   "/work/wicker",
               "output_dir":  "/work/wicker/CAM_case_studies",
               "cases": {"2021050400": ["hrrr", "rrfs"],
-                        }
+                       }
               }
