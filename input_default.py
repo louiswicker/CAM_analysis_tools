@@ -28,7 +28,7 @@ input_all =  {
 
 input_single =  {
               "filtered_filename": "",
-              "filter_dx":          8,
+              "filter_dx":          12,
               "filter_npass":       6,
               "input_dir":   "/work/larissa.reames",
               "output_dir":  "/work/wicker/CAM_case_studies",
