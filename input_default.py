@@ -39,3 +39,15 @@ input_single =  {
                         "2021052612": [33.5, 43.0, -102.5, -97.0, 5]
                        }
               }
+
+# Inputs for case studies
+
+input_4May = {
+              "filtered_filename": "",
+              "filter_dx":          8,
+              "filter_npass":       6,
+              "input_dir":   "/work/wicker",
+              "output_dir":  "/work/wicker/CAM_case_studies",
+              "cases": {"2021050400": ["hrrr", "rrfs"],
+                        }
+              }
