@@ -28,17 +28,37 @@ input_all =  {
 
 # Input for a single run
 
-input_single =  {
+input_nam =  {
               "filtered_filename": "",
-              "filter_dx":          12,
+              "filter_dx":          8,
               "filter_npass":       6,
               "input_dir":   "/work/larissa.reames",
               "output_dir":  "/work/wicker/CAM_case_studies",
               "cases": {
-                        "2021052612": ["hrrr", "ctrl", "nord3"],
+                        "2021052612": ["nam"],
                        },
                "zoom": {
-                        "2021052612": [33.5, 43.0, -102.5, -97.0, 5]
+                        "2021052612": [33.5, 43.0, -103.0, -97.0, 5]
+                       }
+              }
+
+
+# Input for a single run
+
+input_single =  {
+              "filtered_filename": "",
+              "filter_dx":          8,
+              "filter_npass":       6,
+              "input_dir":   "/work/larissa.reames",
+              "output_dir":  "/work/wicker/CAM_case_studies",
+              "cases": {
+#                        "2020050300": ["hrrr", "ctrl", "nord3"],
+
+                        "2020050300": ["hrrr"],
+
+                       },
+               "zoom": {
+                        "2020050300": [35.0, 40.0,  -89.0, -81.0, 5],
                        }
               }
 
