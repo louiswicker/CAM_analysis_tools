@@ -283,7 +283,7 @@ def get_spectraND(fld, func = get_spectra2D_RAD, **kwargs):
 # Plot spectral
 
 def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PScolor='k', 
-                 ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
+                 ptitle='Power Spectra', loglog=1, LinsborgSlope = False, no_Plot = False, ret_Data = False, **kwargs):
     
     import matplotlib.ticker as mticker
     
@@ -298,6 +298,9 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
         
     else:
         kvals, Abins, waven = get_spectraND(fld, func = func, **kwargs)
+        
+    if no_Plot:
+        return [kvals, Abins, waven]
 
     if 'debug' in kwargs:
         print('kvals: ',kvals.shape,kvals)
@@ -369,3 +372,6 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
     
     if ax == None: 
         plt.show()
+        
+    if ret_Data:
+        return [kvals, Abins, waven]
