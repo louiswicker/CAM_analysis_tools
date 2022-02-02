@@ -7,6 +7,28 @@ import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 #-------------------------------------------------------------------------------------
+# Dtrend field (from Corey, maybe from me a long time ago....
+
+def dtrend2d(array):
+    
+    ny, nx  = array.shape[0], array.shape[1]
+
+    slope      = ( array[ny-1,:] - array[0,:] ) / float(ny-1)
+    correction = (2*np.arange(ny) - float(ny) - 1.0) / 2.0
+    barray     = array.copy()
+    
+    for i in np.arange(nx):
+        barray[:,i] = barray[:,i] - slope[i] * correction[:]
+        
+    slope       = ( barray[:,nx-1] - array[:,0] ) / float(nx-1)
+    correction  = (2*np.arange(nx) - float(nx) - 1.0) / 2.0
+        
+    for j in np.arange(ny):
+        barray[j,:] = barray[j,:] - slope[j] * correction[:]
+        
+    return barray
+
+#-------------------------------------------------------------------------------------
 # 2D Spectra from the fourier spectrum package from jfrob27's pywaven package
 
 def get_spectra2D_CWT(fld, print_info=True, zeromean=True, **kwargs):
@@ -49,7 +71,7 @@ def get_spectra2D_CWT(fld, print_info=True, zeromean=True, **kwargs):
 #-------------------------------------------------------------------------------------
 # 2D Spectra from the fourier spectrum package from jfrob27's pywaven package
 
-def get_spectra2D_POWSPEC(fld, print_info=True, zeromean=True, **kwargs):
+def get_spectra2D_POWSPEC(fld, print_info=True, zeromean=True, PS_only=False, **kwargs):
     """
     Returns 1D power spectra from a 2D field 
         
@@ -93,12 +115,14 @@ def get_spectra2D_POWSPEC(fld, print_info=True, zeromean=True, **kwargs):
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
     wavenumber = 2*(kvals-1)/nx
 
-    PSbins = PSbins * np.pi * (kbins[1:]**2 - kbins[:-1]**2)
-            
     if print_info:
-            print("------------------------\n")
+        print("------------------------\n")
     
-    return kbins, PSbins, 2*waven
+    if PS_only:
+        return kbins, PSbins, 2*waven
+    else:
+        PSbins = PSbins * np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+        return kbins, PSbins, 2*waven
 
 
 #-------------------------------------------------------------------------------------
@@ -183,9 +207,11 @@ def get_spectra2D_RAD(fld, print_info=True, zeromean=True, **kwargs):
 #-------------------------------------------------------------------------------------
 # 1D Spectra
 
-def get_spectra2D_AVG(fld, axis=1, print_info=True, zeromean=True, **kwargs):
+def get_spectra2D_AVG(fld, axis=1, print_info=True, zeromean=True, dtrend=True, **kwargs):
     """
-    Returns the average power spectra from a 2D field along one dimension averaging over the second direction.
+    Returns the average power spectra from averaging spectra from each dimension.
+    
+    Code from Corey Potvin (thanks Corey!)
     
     Input:  2D floating pont array
     
@@ -199,43 +225,64 @@ def get_spectra2D_AVG(fld, axis=1, print_info=True, zeromean=True, **kwargs):
         print("get_spectra2D_AVG called")
         print("------------------------\n")
 
-    # now need to make the number of points even...
+    if dtrend:
+        fld = dtrend2d(fld)
+        
+    # Make square domain
 
-    ny, nx = fld.shape
-    nx     = 2*(nx//2)
-    ny     = 2*(ny//2)
+    L   = min(fld.shape[0], fld.shape[1])
     
-    fld2   = fld[0:ny,0:nx].copy()
+    fld = fld[0:L,0:L]
+       
+    xpsd = 2.0/float(L)*np.power(np.absolute(np.fft.rfft(fld, axis=0)[0:L//2+1]), 2)
     
-    if zeromean == True:
-        fld2 -= np.mean(fld2)
+    ypsd = 2.0/float(L)*np.power(np.absolute(np.fft.rfft(fld, axis=1)[0:L//2+1]), 2)
     
-    if print_info: 
-        print("get_spectra2D_AVG: Field has [even] dimensions nx: %d  ny: %d\n" %(nx,ny))
-
-    # Now pick an axis to average over
-
-    nx = fld2.shape[axis]
+    PSD = 0.5*(np.average(xpsd,axis=1) + np.average(ypsd,axis=0))
     
-    other_axis = [1,0]
-
-    avg_axis = other_axis[axis]
+    waven = np.arange(0,L//2+1)/float(L)
     
-    fourier_image = np.fft.fft(fld2, axis = axis)
-    
-    fourier_amplitudes = (np.abs(fourier_image)**2).mean(axis = avg_axis) / nx
-    
-    kfreq   = np.fft.fftfreq(nx) * nx
-    
-    kbins = np.arange(0.5, nx//2+1, 1.)
+    kbins = np.arange(0.5, L//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
 
-    PSbins, _, _ = stats.binned_statistic(kfreq, fourier_amplitudes, statistic = "mean", bins = kbins)
     
-    PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
-    wavenumber = 2*(kvals-1)/nx
+    return kvals, PSD, 2.0*waven
+
     
-    return kvals, PSbins, wavenumber
+#     nx     = 2*(nx//2)
+#     ny     = 2*(ny//2)
+    
+#     fld2   = fld[0:ny,0:nx].copy()
+    
+#     if zeromean == True:
+#         fld2 -= np.mean(fld2)
+    
+#     if print_info: 
+#         print("get_spectra2D_AVG: Field has [even] dimensions nx: %d  ny: %d\n" %(nx,ny))
+
+#     # Now pick an axis to average over
+
+#     nx = fld2.shape[axis]
+    
+#     other_axis = [1,0]
+
+#     avg_axis = other_axis[axis]
+    
+#     fourier_image = np.fft.fft(fld2, axis = axis)
+    
+#     fourier_amplitudes = (np.abs(fourier_image)**2).mean(axis = avg_axis) / nx
+    
+#     kfreq   = np.fft.fftfreq(nx) * nx
+    
+#     kbins = np.arange(0.5, nx//2+1, 1.)
+#     kvals = 0.5 * (kbins[1:] + kbins[:-1])
+
+#     PSbins, _, _ = stats.binned_statistic(kfreq, fourier_amplitudes, statistic = "mean", bins = kbins)
+    
+#     PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+#     wavenumber = 2*(kvals-1)/nx
+    
+#     return kvals, PSbins, wavenumber
 
 #-------------------------------------------------------------------------------------
 # 3D Spectra
