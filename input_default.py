@@ -85,9 +85,9 @@ input_test =  {
                         "2020081006": ["hrrr", "ctrl", "nord3", "nam"],
                         "2020070700": ["hrrr", "ctrl", "nord3", "nam"],
                         "2020030212": ["hrrr", "ctrl", "nord3", "nam"],
-                        "2020050300": ["hrrr", "ctrl", "nord3", "nam"],
-                        "2021090100": ["hrrr", "ctrl", "nord3", "nam"],
-                        "2021052612": ["hrrr", "ctrl", "nord3", "nam"],
+                        # "2020050300": ["hrrr", "ctrl", "nord3", "nam"],
+                        # "2021090100": ["hrrr", "ctrl", "nord3", "nam"],
+                        # "2021052612": ["hrrr", "ctrl", "nord3", "nam"],
                        },
                "zoom": {
                         "2020030212": [34.0, 39.5,  -92.0, -85.0, 2],
