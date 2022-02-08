@@ -4,6 +4,8 @@ import time
 import scipy
 import my_timer
 
+time_solver = 0.0
+
 #---------------------------------------------------------------------------------------------
 
 def RaymondResponse(wavenumber, eps, order, npass=1):
@@ -91,7 +93,7 @@ def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, hig
         eps:      for testing and backward compatibilty, one can specify an eps bypassing the dx criteria
                   
         **kargs:  the only valid dictionary key is "klevels", which is only used in the 3D array filtering
-                  to speed the computation by only filtering a list of levels, e.g., k=[10,20,30].  Default is
+                  to speed the computation by only filtering a list of levels, e.g., klevels=[10,20,30].  Default is
                   to do the entire array in 2D planes, looping through the first axis.
     """
     
@@ -138,11 +140,15 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
     
     try:
         from scipy.sparse import spdiags
-        from scipy.sparse.linalg import spsolve
-        from scipy import linalg        
+        from scipy.sparse.linalg import dsolve, spsolve
+        from scipy.sparse.linalg import linsolve
+        from scipy.linalg import solve_banded
+        
     except ImportError: 
         raise ImportError("RaymondFilter6:  Filter1D requires scipy.sparse libraries.")
-
+          
+    linsolve.use_solver(assumeSortedIndices=True, useUmfpack=True)
+    
     #---------------------------------------------------------------------------------------------
     def Filter6_Init(N, EPS, bc_reflect=False, **kwargs):
         """
@@ -331,12 +337,19 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
 #             XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
         
 
-            XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
+        # XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], assumeSortedIndices=True, use_umfpack = True)
+        
+        tocY = time.perf_counter()  
+        
+        XF[1:-1] = XF[1:-1] + solve_banded(A, RHS[1:-1])
+        
+        globals()['time_solver'] += time.perf_counter() - tocY
 
-            return XF
+        return XF
 
     #---------------------------------------------------------------------------------------------
     # Code to do 1D or 2D input
+    
 
     if len(xy2d.shape) == 1:
         
@@ -387,6 +400,8 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
         print("RaymondFilter6:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
         print("RaymondFilter6:  NPASS:  %d \n" % npass)
         
+        nz, ny, nx = xy2d.shape
+        
         if 'klevels' in kwargs:
             klevels = kwargs.get('klevels')
             print("RaymondFilter6: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
@@ -395,27 +410,30 @@ def RaymondFilter6(xy2d, eps, npass = 1, **kwargs):
 
         toc = time.perf_counter()
         
-        nz, ny, nx = xy2d.shape
-        
         XYRES = xy2d.copy()
         
         for n in np.arange(npass):  # multiple pass capability
-            
+
             XYRES2 = XYRES.copy()
             A = Filter6_Init(ny, eps)
             for k in klevels:
+                print('Y-Pass, k = %d' % k)
                 for i in np.arange(nx):
                     XYRES[k,:,i] = Filter1D(XYRES2[k,:,i], eps, A, **kwargs)
-                                   
+            
             XYRES2 = XYRES.copy()
             A = Filter6_Init(nx, eps)
+            
             for k in klevels:
+                print('X-Pass, k = %d' % k)
                 for j in np.arange(ny):
                     XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
         
         tic = time.perf_counter()
             
         print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")
+        
+        print(f"Linear solver took {time_solver:.4f} seconds\n")
         
         return XYRES
 
@@ -515,7 +533,7 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
 
     try:
         from scipy.sparse import spdiags
-        from scipy.sparse.linalg import spsolve
+        from scipy.sparse.linalg import dsolve
     except ImportError: 
         raise ImportError("Raymond_10_Filter1D requires scipy.sparse libraries.")
         
@@ -716,13 +734,14 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
                    +210.0*(XY[4:NM5-1]+XY[ 6:NM5+1])
                    -252.0* XY[5:NM5]                )
         
-        B = scipy.linalg.lu_factor(A.toarray())
+#         B = scipy.linalg.lu_factor(A.toarray())
 
-        XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
+#         XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
 
-#        XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
+        # XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
 
-        
+        XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], use_umfpack=True)
+
         return XF
 
     #---------------------------------------------------------------------------------------------
@@ -772,14 +791,14 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
         print("RaymondFilter10:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
         print("RaymondFilter10:  NPASS: %d \n" % npass)
         
+        nz, ny, nx = xy2d.shape
+        
         if 'klevels' in kwargs:
             klevels = kwargs.get('klevels')
             print("RaymondFilter10: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
         else:
             klevels = [k for k in np.arange(nz)]
 
-        nz, ny, nx = xy2d.shape
-        
         toc = time.perf_counter()
                 
         XYRES = xy2d.copy()
