@@ -2,10 +2,11 @@
 
 input_all =  {
               "filtered_filename": "",
-              "filter_dx":         12,
-              "filter_npass":       6,
+              "filter_dx":         8,
+              "filter_npass":      1,
               "input_dir":   "/work/larissa.reames",
               "output_dir":  "/work/wicker/CAM_case_studies",
+              "fprefix":     "econus",
               "cases": {
                         "2019071918": ["hrrr", "ctrl", "nord3"],
                         "2020081006": ["hrrr", "ctrl", "nord3"],
@@ -31,7 +32,7 @@ input_all =  {
 input_nam =  {
               "filtered_filename": "",
               "filter_dx":          12,
-              "filter_npass":       6,
+              "filter_npass":       1,
               "input_dir":   "/work/larissa.reames",
               "output_dir":  "/work/wicker/CAM_case_studies",
               "cases": {
@@ -53,12 +54,13 @@ input_nam =  {
 input_single =  {
               "filtered_filename": "",
               "filter_dx":          8,
-              "filter_npass":       6,
+              "filter_npass":       1,
               "input_dir":   "/work/larissa.reames",
               "output_dir":  "/work/wicker/CAM_case_studies",
+              "fprefix":     "econus",
               "cases": {
-                        "2020050300": ["hrrr", "ctrl", "nord3"],
-                        # "2021052612": ["hrrr", "ctrl", "nord3"],
+                        #"2020030212": ["hrrr", "ctrl", "nord3", "nam"],
+                        "2021052612": ["hrrr", "ctrl", "nord3"],
                        },
                "zoom": {
                         "2019071918": [44.0, 49.0,  -92.0, -87.0, 5],
