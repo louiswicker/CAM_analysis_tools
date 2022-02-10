@@ -10,9 +10,10 @@ from contextlib import contextmanager
 from functools import partial
 import multiprocessing
 
-nthreads = 4
+nthreads = 9
 
 from scipy.sparse.linalg import dsolve, spsolve
+from scipy.sparse.linalg import linsolve
 
 
 @contextmanager
@@ -20,36 +21,106 @@ def poolcontext(*args, **kwargs):
     pool = multiprocessing.Pool(*args, **kwargs)
     yield pool
     pool.terminate()
+    
+#---------------------------------------------------------------------------------------------
 
-time_solver = 0.0
-
-def P_Filter1D(i, XY2D, EPS, A, index):
+def P_Filter10(k, XYZ, EPS, A, transpose=False):
     """
-        Compute solution for 1D column Raymond's 1988 6th order implicit tangent filter.
+    Compute solution for 2D plane Raymond's 1988 10th order implicit tangent filter in parallel.
 
-        Adapted from Raymond's original code and from example code on Program Creek.
+    Adapted from Raymond's original code and from example code on Program Creek.
 
-        https://www.programcreek.com/python/example/97027/scipy.linalg.solve_banded [example 3]
+    https://www.programcreek.com/python/example/97027/scipy.linalg.solve_banded [example 3]
 
-        See RAYMOND, 1988, MWR, 116, 2132-2141 for details on parameter EPS
+    See RAYMOND, 1988, MWR, 116, 2132-2141 for details on parameter EPS
 
-        Lou Wicker, Oct 2021 
+    This routine is designed to use multiprocessing so that each 2D level is done in a thread.
+
+    Original Version:  Lou Wicker, Oct 2021 
+    
+    Latest Revision:   Lou Wicker, Feb 2022
     """
                   
-    # if 'bc_reflect' in kwargs:
-    #     bc_reflect = kwargs.get('bc_reflect')
-    #     print("Filter1D:  bc_reflect = ", bc_reflect)
-
-    N  = XY2D.shape[index]
-
-    if index == 0:
-        XY  = XY2D[:,i]
+    if transpose:   # this means we are doing the last index on the inner loop.
+        XY = XYZ[k,:,:].transpose()
     else:
-        XY  = XY2D[i,:]
-
+        XY = XYZ[k,:,:]
+        
+    N, M = XY.shape
+        
     XF  = XY.copy()
 
-    RHS = np.zeros((N,), dtype=np.float64)
+    RHS = np.zeros((N, M), dtype=np.float64)
+
+    # Construct RHS (0-based indexing, not 1 like in fortran)
+    
+    NM1 = N-1
+    NM2 = N-2
+    NM3 = N-3
+    NM4 = N-4
+    NM5 = N-5
+    NM6 = N-6
+    NM7 = N-7
+    NM8 = N-8
+    NM9 = N-9
+
+    # Compute RHS filter
+
+    RHS[  0,:] =  0.0
+    RHS[  1,:] =  0.01*EPS*( XY[0,:] - 2.0*XY[1,:] +      XY[2,:] ) 
+    RHS[  2,:] = -0.05*EPS*( XY[0,:] - 4.0*XY[1,:] +  6.0*XY[2,:] -  4.0*XY[3,:] +      XY[4,:] )
+    RHS[  3,:] =  0.10*EPS*( XY[0,:] - 6.0*XY[1,:] + 15.0*XY[2,:] - 20.0*XY[3,:] + 15.0*XY[4,:] -  6.0*XY[5,:] +      XY[6,:] )
+    RHS[  4,:] = -0.50*EPS*( XY[0,:] - 8.0*XY[1,:] + 28.8*XY[2,:] - 56.0*XY[3,:] + 70.0*XY[4,:] - 56.0*XY[5,:] + 28.0*XY[6,:] - 8.0*XY[7,:] + XY[8,:] )
+
+    RHS[NM5,:] = -0.50*EPS*( XY[NM1,:] - 8.0*XY[NM2,:] + 28.8*XY[NM3,:] - 56.0*XY[NM4,:] + 70.0*XY[NM5,:] - 56.0*XY[NM6,:] + 28.0*XY[NM7,:] - 8.0*XY[NM8,:] + XY[NM9,:] )        
+    RHS[NM4,:] =  0.10*EPS*( XY[NM1,:] - 6.0*XY[NM2,:] + 15.0*XY[NM3,:] - 20.0*XY[NM4,:] + 15.0*XY[NM5,:] -  6.0*XY[NM6,:] +      XY[NM7,:] )
+    RHS[NM3,:] = -0.05*EPS*( XY[NM1,:] - 4.0*XY[NM2,:] +  6.0*XY[NM3,:] -  4.0*XY[NM4,:] +      XY[NM5,:] )
+    RHS[NM2,:] =  0.01*EPS*( XY[NM1,:] - 2.0*XY[NM2,:] +      XY[NM3,:] )  
+    RHS[NM1,:] =  0.0 
+
+    RHS[5:NM5,:] = EPS*((XY[0:NM5-5,:]+XY[10:NM5+5,:])
+                 - 10.0*(XY[1:NM5-4,:]+XY[ 9:NM5+4,:])
+                 + 45.0*(XY[2:NM5-3,:]+XY[ 8:NM5+3,:])
+                 -120.0*(XY[3:NM5-2,:]+XY[ 7:NM5+2,:])
+                 +210.0*(XY[4:NM5-1,:]+XY[ 6:NM5+1,:])
+                 -252.0* XY[5:NM5,:]                 )
+
+    XF[1:-1,:] = XF[1:-1,:] + dsolve.spsolve(A, RHS[1:-1,:], use_umfpack = True)
+
+    if transpose: 
+        return XF.transpose()
+    else:
+        return XF
+
+#---------------------------------------------------------------------------------------------
+
+def P_Filter6(k, XYZ, EPS, A, transpose=False):
+    """
+    Compute solution for 2D plane Raymond's 1988 6th order implicit tangent filter in parallel.
+
+    Adapted from Raymond's original code and from example code on Program Creek.
+
+    https://www.programcreek.com/python/example/97027/scipy.linalg.solve_banded [example 3]
+
+    See RAYMOND, 1988, MWR, 116, 2132-2141 for details on parameter EPS
+
+    This routine is designed to use multiprocessing so that each 2D level is done in a thread.
+
+    Original Version:  Lou Wicker, Oct 2021 
+    
+    Latest Revision:   Lou Wicker, Feb 2022
+    """
+                  
+    if transpose:   # this means we are doing the last index on the inner loop.
+        XY = XYZ[k,:,:].transpose()
+    else:
+        XY = XYZ[k,:,:]
+        
+    N, M = XY.shape
+        
+    XF  = XY.copy()
+
+    RHS = np.zeros((N, M), dtype=np.float64)
 
     # Construct RHS (0-based indexing, not 1 like in fortran)
 
@@ -62,30 +133,27 @@ def P_Filter1D(i, XY2D, EPS, A, index):
 
     # Compute inner RHS
 
-    RHS[3:NM3] = EPS*((XY[0:NM3-3]+XY[6:NM3+3])
-                - 6.0*(XY[1:NM3-2]+XY[5:NM3+2])
-                +15.0*(XY[2:NM3-1]+XY[4:NM3+1])
-                -20.0* XY[3:NM3]               )
+    RHS[3:NM3,:] = EPS*((XY[0:NM3-3,:]+XY[6:NM3+3,:])
+                  - 6.0*(XY[1:NM3-2,:]+XY[5:NM3+2,:])
+                  +15.0*(XY[2:NM3-1,:]+XY[4:NM3+1,:])
+                  -20.0* XY[3:NM3,:]               )
 
-    RHS[  0] = 0.0
-    RHS[  1] =  0.1*EPS*( XY[0] - 2.0*XY[1] +     XY[2] ) 
-    RHS[  2] = -0.5*EPS*( XY[0] - 4.0*XY[1] + 6.0*XY[2] - 4.0*XY[3] + XY[4] )
-
-
-    RHS[NM3] = -0.5*EPS*( XY[NM1] - 4.0*XY[NM2] + 6.0*XY[NM3] - 4.0*XY[NM4] + XY[NM5] )
-    RHS[NM2] =  0.1*EPS*( XY[NM1] - 2.0*XY[NM2] +     XY[NM3] )   
-    RHS[NM1] = 0.0 
-
-#             B = scipy.linalg.lu_factor(A.toarray())
-
-#             XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
+    RHS[  0,:] = 0.0
+    RHS[  1,:] =  0.1*EPS*( XY[0,:] - 2.0*XY[1,:] +     XY[2,:] ) 
+    RHS[  2,:] = -0.5*EPS*( XY[0,:] - 4.0*XY[1,:] + 6.0*XY[2,:] - 4.0*XY[3,:] + XY[4,:] )
 
 
-    # XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], assumeSortedIndices=True, use_umfpack = True)
+    RHS[NM3,:] = -0.5*EPS*( XY[NM1,:] - 4.0*XY[NM2,:] + 6.0*XY[NM3,:] - 4.0*XY[NM4,:] + XY[NM5,:] )
+    RHS[NM2,:] =  0.1*EPS*( XY[NM1,:] - 2.0*XY[NM2,:] +     XY[NM3,:] )   
+    RHS[NM1,:] = 0.0 
 
-    XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], use_umfpack = True)
 
-    return XF
+    XF[1:-1,:] = XF[1:-1,:] + dsolve.spsolve(A, RHS[1:-1,:], use_umfpack = True)
+
+    if transpose: 
+        return XF.transpose()
+    else:
+        return XF
 #---------------------------------------------------------------------------------------------
 
 def RaymondResponse(wavenumber, eps, order, npass=1):
@@ -131,7 +199,7 @@ def inverseRaymondResponse(Rvalue, wavenumber, order=6, npass=1):
 
 #---------------------------------------------------------------------------------------------
             
-def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, highpass=False, eps=None, **kwargs):
+def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, highpass=False, eps=None, width=0, **kwargs):
     
     """ 
     Adapted from Raymond's original code and from example code on Program Creek.
@@ -171,12 +239,27 @@ def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, hig
                   filtering, e.g., the high pass component.
         
         eps:      for testing and backward compatibilty, one can specify an eps bypassing the dx criteria
+        
+        width:    for 10th order filter near boundaries, there seems to be a lot of noise - so if width > 0,
+                  the orignal array values in a boundary zone "width" wide is copied into the filtered array.
+                  Value of width should normally ~50, but is set by the user.  Default = 0, no replacement.
                   
         **kargs:  the only valid dictionary key is "klevels", which is only used in the 3D array filtering
                   to speed the computation by only filtering a list of levels, e.g., klevels=[10,20,30].  Default is
                   to do the entire array in 2D planes, looping through the first axis.
     """
     
+    def fix_bndry(orig, filtered):
+
+        if width > 0:
+            filtered[:,  :width,   :  ]  = orig[:,  :width,   :]
+            filtered[:,  -width:,  :  ]  = orig[:,  -width:,  :]
+            filtered[:,    :,   :width]   = orig[:,    :,  :width]
+            filtered[:,    :,   -width:]  = orig[:,    :,  -width:]
+            return filtered
+        else:
+            return filtered
+        
     if eps:
         eps0 = eps
     else:
@@ -184,20 +267,18 @@ def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, hig
     
     if order == 6:
         if fortran:
-            if highpass:
-                return array - RaymondFilter6F(array, eps0, npass = npass, **kwargs)
-            else:
-                return RaymondFilter6F(array, eps0, npass = npass, **kwargs)
+            filtered = RaymondFilter6F(array, eps0, npass = npass, **kwargs)
         else:
-            if highpass:
-                return array - RaymondFilter6(array, eps0, npass = npass, **kwargs)
-            else:
-                return RaymondFilter6(array, eps0, npass = npass, **kwargs)
-    if order == 10:
+            filtered = RaymondFilter6(array, eps0, npass = npass, **kwargs)
+                
         if highpass:
-            return array - RaymondFilter10(array, eps0, npass = npass, **kwargs)
-        else:
-            return RaymondFilter10(array, eps0, npass = npass, **kwargs)
+            return array - fix_bndry(array, filtered, fix_noise)
+        
+    if order == 10:
+        filtered = RaymondFilter10(array, eps0, npass = npass, **kwargs)
+        
+        if highpass:
+            return array - fix_bndry(array, filtered)
     
     print("Filter order must be be 6 (6th) or 10 (10th) order...exiting \n")
     
@@ -230,7 +311,7 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
     linsolve.use_solver(assumeSortedIndices=True, useUmfpack=True)
     
     #---------------------------------------------------------------------------------------------
-    def Filter6_Init(N, EPS, bc_reflect=False, **kwargs):
+    def Define_Matrix(N, EPS, bc_reflect=False, **kwargs):
         """
         Compute diagonal matrix values for 1D column Raymond's 1988 6th order implicit tangent filter.
         
@@ -348,7 +429,8 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
             return spdiags(diagonals, [0, -1, 1, -2, 2, -3, 3], N-2, N-2, format='csc')
     
     #---------------------------------------------------------------------------------------------
-    def Filter1D(i, XY2D, EPS, A, index):
+    
+    def Filter1D(XY, EPS, A):
         """
         Compute solution for 1D column Raymond's 1988 6th order implicit tangent filter.
 
@@ -365,13 +447,8 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
         #     bc_reflect = kwargs.get('bc_reflect')
         #     print("Filter1D:  bc_reflect = ", bc_reflect)
 
-        N  = XY2D.shape[index]
+        N  = XY.shape[0]
         
-        if index == 0:
-            XY  = XY2D[:,i]
-        else:
-            XF  = XY2D[i,:]
-
         XF  = XY.copy()
 
         RHS = np.zeros((N,), dtype=np.float64)
@@ -417,13 +494,6 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
             RHS[NM3] = -0.5*EPS*( XY[NM1] - 4.0*XY[NM2] + 6.0*XY[NM3] - 4.0*XY[NM4] + XY[NM5] )
             RHS[NM2] =  0.1*EPS*( XY[NM1] - 2.0*XY[NM2] +     XY[NM3] )   
             RHS[NM1] = 0.0 
-
-#             B = scipy.linalg.lu_factor(A.toarray())
-
-#             XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
-        
-
-        # XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], assumeSortedIndices=True, use_umfpack = True)
               
         XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], use_umfpack = True)
         
@@ -434,7 +504,7 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
 
     if len(xy2d.shape) == 1:
         
-        A = Filter6_Init(xy2d.shape[0], eps, **kwargs)
+        A = Define_Matrix(xy2d.shape[0], eps, **kwargs)
         
         print(f'\nCOND:  \n',np.linalg.cond(A.toarray()))
         
@@ -460,12 +530,12 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
 
         for n in np.arange(npass):  # multiple pass capability
                         
-            A = Filter6_Init(ny, eps, **kwargs) 
+            A = Define_Matrix(ny, eps, **kwargs) 
             for i in np.arange(nx):
                 y1d[:]    = xy_copy[:,i]
                 ytmp[:,i] = Filter1D(y1d, eps, A, **kwargs)
         
-            A = Filter6_Init(nx, eps, **kwargs)
+            A = Define_Matrix(nx, eps, **kwargs)
             xtmp = ytmp.copy()
             for j in np.arange(ny):
                 xy_copy[j,:] = Filter1D(xtmp[j,:], eps, A, **kwargs)
@@ -485,9 +555,14 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
         
         if 'klevels' in kwargs:
             klevels = kwargs.get('klevels')
-            print("RaymondFilter6: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+            if klevels == None:
+                klevels = np.arange(xy2d.shape[0])
+                print("RaymondFilter6: KLEVELS == None, filtering ALL vertical levels...\n")
+            else:
+                print("RaymondFilter6: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
         else:
-            klevels = [k for k in np.arange(nz)]
+            klevels = np.arange(xy2d.shape[0])
+            print("RaymondFilter6: filtering ALL vertical levels...\n")
 
         toc = time.perf_counter()
         
@@ -496,124 +571,32 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
         for n in np.arange(npass):  # multiple pass capability
 
             XYRES2 = XYRES.copy()
-            A = Filter6_Init(ny, eps)
+            A = Define_Matrix(ny, eps)
             
-            result = np.zeros((XYRES.shape[1],XYRES.shape[2]))
-            
-            for k in klevels:
-                
-                #     print('Y-Pass, k = %d' % k)
-                #     for i in np.arange(nx):
-                #         XYRES[k,:,i] = Filter1D(XYRES2[k,:,i], eps, A, **kwargs)
+            with poolcontext(processes=nthreads) as pool:
 
-                with poolcontext(processes=nthreads) as pool:
-                    
-                    t0 = time.time()
-                    XYRES[k,:,:] = np.array( pool.map(partial(P_Filter1D, XY2D=XYRES2[k,:,:], EPS=eps, A=A, index=0), np.arange(nx)) ).transpose()
-                    t1 = time.time()
-                                    
-                print(f"Y-Parallel Loop took {t1-t0:.4f} seconds\n")
+                t0 = time.time()
+                XYRES = np.array( pool.map(partial(P_Filter6, XYZ=XYRES2, EPS=eps, A=A, transpose=False), np.arange(nz)) )
+                t1 = time.time()
+
+            print(f"Y-Parallel Loop took {t1-t0:.4f} seconds\n")
 
             XYRES2 = XYRES.copy()
-            A = Filter6_Init(nx, eps)
-            
-            for k in klevels:
-                # print('X-Pass, k = %d' % k)
-                # for j in np.arange(ny):
-                #     XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
-                
-                with poolcontext(processes=nthreads) as pool:
-                    
-                    t0 = time.time()
-                    XYRES[k,:,:] = pool.map(partial(P_Filter1D, XY2D=XYRES2[k,:,:],  EPS=eps, A=A, index=1), np.arange(ny))
-                    t1 = time.time()
+            A = Define_Matrix(nx, eps)
+                            
+            with poolcontext(processes=nthreads) as pool:
 
-                print(f"X-Parallel Loop took {t1-t0:.4f} seconds\n")
+                t0 = time.time()
+                XYRES = np.array( pool.map(partial(P_Filter6, XYZ=XYRES2,  EPS=eps, A=A, transpose=True), np.arange(nz)) )
+                t1 = time.time()
+
+            print(f"X-Parallel Loop took {t1-t0:.4f} seconds\n")
         
         tic = time.perf_counter()
             
         print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")
                 
         return XYRES
-
-#---------------------------------------------------------------------------------------------
-            
-def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
-    """
-    Combined Fortran and Python driver for Raymond's filters for 1 and 2D arrays
-    
-    Adapted from Raymond's original code 
-    
-    Wraps Raymond's 6th order fortran code in python using f2py
-    
-    See RAYMOND, 1988, MWR, 116, 2132-2141 for details on parameter EPS
-    
-    Lou Wicker, Oct 2021 
-    """
-    
-    try:
-        from filter.raymond_lowpass import raymond1d_lowpass, raymond2d_lowpass 
-    except ImportError: 
-        raise ImportError("RaymondFilter6F:  Requires compiled shared library called raymond_lowpass.")
-            #---------------------------------------------------------------------------------------------
-    # Code to do 1D or 2D input
-
-    if len(xy2d.shape) ==1:
-        
-        toc = time.perf_counter()
-
-        x_copy = xy2d.copy()
-        for n in np.arange(npass):
-            x_copy = raymond1d_lowpass(x_copy.copy(), eps)
-            
-        tic = time.perf_counter()
-            
-        print(f"NPass Loop for 1D array took {tic - toc:0.4f} seconds\n")
-
-        return x_copy
-    
-    elif len(xy2d.shape) == 2:
-            
-        xy_copy = xy2d.copy()
-
-        toc = time.perf_counter()
-
-        for n in np.arange(npass):  # multiple pass capability
-            
-            xy_copy = raymond2d_lowpass(xy_copy.transpose(),eps)
-                      
-        tic = time.perf_counter()
-            
-        print(f"NPass Loop for 2D array took {tic - toc:0.4f} seconds\n")
-        
-        return xy_copy
-        
-    elif len(xy2d.shape) == 3:
-        
-        toc = time.perf_counter()
-        
-        print("RaymondFilter6F:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
-        print("RaymondFilter6F:  NPASS:  %d \n" % npass)
-        
-        if 'klevels' in kwargs:
-            klevels = kwargs.get('klevels')
-            print("RaymondFilter6F: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
-        else:
-            klevels = [k for k in np.arange(xy2d.shape[0])]
-
-        xy_copy = xy2d.copy()
-        
-        for n in np.arange(npass):  # multiple pass capability
-            
-            for k in klevels:
-                xy = xy_copy[k]
-                xy_copy[k] = raymond2d_lowpass(xy,eps)
-                      
-        tic = time.perf_counter()
-            
-        print(f"NPass Loop for 3D array took {tic - toc:0.4f} seconds\n")
-
-        return xy_copy
 
 #---------------------------------------------------------------------------------------------
     
@@ -637,7 +620,7 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
         raise ImportError("Raymond_10_Filter1D requires scipy.sparse libraries.")
         
     #---------------------------------------------------------------------------------------------
-    def Filter10_Init(N, EPS, **kwargs):
+    def Define_Matrix(N, EPS, **kwargs):
         """
         Compute diagonal matrix values for 1D column Raymond's 1988 6th order implicit tangent filter.
         
@@ -659,6 +642,7 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
         """
 
         # Construct RHS (0-based indexing, not 1 like in fortran)
+        
         NM1 = N-1
         NM2 = N-2
         NM3 = N-3
@@ -833,24 +817,16 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
                    +210.0*(XY[4:NM5-1]+XY[ 6:NM5+1])
                    -252.0* XY[5:NM5]                )
         
-#         B = scipy.linalg.lu_factor(A.toarray())
-
-#         XF[1:-1] = XF[1:-1] + scipy.linalg.lu_solve(B, RHS[1:-1])
-
-        # XF[1:-1] = XF[1:-1] + spsolve(A, RHS[1:-1])
-
         XF[1:-1] = XF[1:-1] + dsolve.spsolve(A, RHS[1:-1], use_umfpack=True)
 
         return XF
 
     #---------------------------------------------------------------------------------------------
-    # Code to do 1D or 2D input
+    # Code to do 1D / 2D 3D input
 
     if len(xy2d.shape) == 1:
-        A = Filter10_Init(xy2d.shape[0], eps)
+        A = Define_Matrix(xy2d.shape[0], eps)
         
-        print(f'\nCOND #:  \n',np.linalg.cond(A.toarray()))
-
         return Filter1D(xy2d[:], eps, A, **kwargs)
     
     elif len(xy2d.shape) == 2:
@@ -866,7 +842,7 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
 
         tic = time.perf_counter()
         
-        A = Filter10_Init(ny, eps)
+        A = Define_Matrix(ny, eps)
         for i in np.arange(nx):
             y1d[:]     = xy2d[:,i]
             XYRES[:,i] = Filter1D(y1d, eps, A, **kwargs)
@@ -876,7 +852,7 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
     
         tic = time.perf_counter()
         XYRES2 = XYRES.copy()
-        A = Filter10_Init(nx, eps)
+        A = Define_Matrix(nx, eps)
         for j in np.arange(ny):
             XYRES[j,:] = Filter1D(XYRES2[j,:], eps, A, **kwargs)
         
@@ -894,32 +870,133 @@ def RaymondFilter10(xy2d, eps, npass = 1, **kwargs):
         
         if 'klevels' in kwargs:
             klevels = kwargs.get('klevels')
-            print("RaymondFilter10: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+            if klevels == None:
+                klevels = np.arange(xy2d.shape[0])
+                print("RaymondFilter10: KLEVELS == None, filtering ALL vertical levels...\n")
+            else:
+                print("RaymondFilter10: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
         else:
-            klevels = [k for k in np.arange(nz)]
+            klevels = np.arange(xy2d.shape[0])
+            print("RaymondFilter10: filtering ALL vertical levels...\n")
+
 
         toc = time.perf_counter()
                 
         XYRES = xy2d.copy()
         
         for n in np.arange(npass):  # multiple pass capability
+
+            XYRES2 = XYRES.copy()
             
+            A = Define_Matrix(ny, eps)
+            
+            with poolcontext(processes=nthreads) as pool:
+
+                t0 = time.time()
+                XYRES = np.array( pool.map(partial(P_Filter10, XYZ=XYRES2, EPS=eps, A=A, transpose=False), np.arange(nz)) )
+                t1 = time.time()
+
+            # print(f"Y-Parallel Loop took {t1-t0:.4f} seconds\n")
+
             XYRES2 = XYRES.copy()
-            A = Filter10_Init(ny, eps)
-            for k in klevels:
-                for i in np.arange(nx):
-                    XYRES[k,:,i] = Filter1D(XYRES2[k,:,i], eps, A, **kwargs)
-                                   
-            XYRES2 = XYRES.copy()
-            A = Filter10_Init(nx, eps)
-            for k in klevels:
-                for j in np.arange(ny):
-                    XYRES[k,j,:] = Filter1D(XYRES2[k,j,:], eps, A, **kwargs)
-                
+            
+            A = Define_Matrix(nx, eps)
+                             
+            with poolcontext(processes=nthreads) as pool:
+
+                t0 = time.time()
+                XYRES = np.array( pool.map(partial(P_Filter10, XYZ=XYRES2,  EPS=eps, A=A, transpose=True), np.arange(nz)) )
+                t1 = time.time()
+
+            # print(f"X-Parallel Loop took {t1-t0:.4f} seconds\n")
+        
         tic = time.perf_counter()
             
         print(f"Loop for 3D array took {tic - toc:0.4f} seconds\n")
         
         return XYRES
-
+    
 #---------------------------------------------------------------------------------------------
+            
+def RaymondFilter6F(xy2d, eps, npass=1, **kwargs):
+    """
+    Combined Fortran and Python driver for Raymond's filters for 1 and 2D arrays
+    
+    Adapted from Raymond's original code 
+    
+    Wraps Raymond's 6th order fortran code in python using f2py
+    
+    See RAYMOND, 1988, MWR, 116, 2132-2141 for details on parameter EPS
+    
+    Lou Wicker, Oct 2021 
+    """
+    
+    try:
+        from filter.raymond_lowpass import raymond1d_lowpass, raymond2d_lowpass 
+    except ImportError: 
+        raise ImportError("RaymondFilter6F:  Requires fortran compiled shared library called raymond_lowpass.")
+
+    #---------------------------------------------------------------------------------------------
+    # Code to do 1D or 2D input
+
+    if len(xy2d.shape) ==1:
+        
+        toc = time.perf_counter()
+
+        x_copy = xy2d.copy()
+        for n in np.arange(npass):
+            x_copy = raymond1d_lowpass(x_copy.copy(), eps)
+            
+        tic = time.perf_counter()
+            
+        print(f"NPass Loop for 1D array took {tic - toc:0.4f} seconds\n")
+
+        return x_copy
+    
+    elif len(xy2d.shape) == 2:
+            
+        xy_copy = xy2d.copy()
+
+        toc = time.perf_counter()
+
+        for n in np.arange(npass):  # multiple pass capability
+            
+            xy_copy = raymond2d_lowpass(xy_copy.transpose(),eps)
+                      
+        tic = time.perf_counter()
+            
+        print(f"NPass Loop for 2D array took {tic - toc:0.4f} seconds\n")
+        
+        return xy_copy
+        
+    elif len(xy2d.shape) == 3:
+        
+        toc = time.perf_counter()
+        
+        print("RaymondFilter6F:  Input array is 3D, 2D filtering implemented on outer two dimensions\n")
+        print("RaymondFilter6F:  NPASS:  %d \n" % npass)
+        
+        if 'klevels' in kwargs:
+            klevels = kwargs.get('klevels')
+            if klevels == None:
+                klevels = np.arange(xy2d.shape[0])
+                print("RaymondFilter6F: KLEVELS == None, filtering ALL vertical levels...\n")
+            else:
+                print("RaymondFilter6F: KLEVELS arg supplied, only filtering levels: %s \n" % klevels)
+        else:
+            klevels = np.arange(xy2d.shape[0])
+            print("RaymondFilter6F: filtering ALL vertical levels...\n")
+
+        xy_copy = xy2d.copy()
+        
+        for n in np.arange(npass):  # multiple pass capability
+            
+            for k in klevels:
+                xy = xy_copy[k]
+                xy_copy[k] = raymond2d_lowpass(xy,eps)
+                      
+        tic = time.perf_counter()
+            
+        print(f"NPass Loop for 3D array took {tic - toc:0.4f} seconds\n")
+
+        return xy_copy
