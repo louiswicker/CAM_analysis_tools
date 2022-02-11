@@ -240,7 +240,7 @@ def RaymondFilter(array, dx, order=6, npass = 1, response=0.9, fortran=True, hig
         
         eps:      for testing and backward compatibilty, one can specify an eps bypassing the dx criteria
         
-        width:    for 10th order filter near boundaries, there seems to be a lot of noise - so if width > 0,
+        width:    for 10th order filter near boundaries, there seems to be a lot of ringing Gibbs noise - so if width > 0,
                   the orignal array values in a boundary zone "width" wide is copied into the filtered array.
                   Value of width should normally ~50, but is set by the user.  Default = 0, no replacement.
                   
