@@ -13,6 +13,8 @@ import xarray as xr
 import matplotlib.gridspec as gridspec
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import argparse
+import json
 
 #--------------------------------------------------
 # Local code imports
@@ -20,11 +22,6 @@ import cartopy.feature as cfeature
 from plot_tools import *
 
 from filter.RaymondFilters import RaymondFilter
-
-#--------------------------------------------------
-# This is the data strcture that controls the input.
-
-from input_default import input_all as input_config
 
 #--------------------------------------------------
 # Can turn on more output
@@ -75,7 +72,7 @@ def save_mfdataset_list(ds, dir, gridType=None):
         if gridType == None:
             gridType = ds.isel(fhour=n).attrs['gridType']
             
-        outfilename = os.path.join(dir, '%s_%08d%02d_F%02d.nc' % (gridType, date, fcstStart, fcstHour))
+        outfilename = os.path.join(dir, '%s_%08d%04d_F%02d.nc' % (gridType, date, fcstStart, fcstHour))
         
         ds.isel(fhour=n).to_netcdf(outfilename, mode='w')  
         print(f'Successfully wrote new data to file:: {outfilename}','\n')
@@ -140,40 +137,66 @@ def filter_ds(input_dir, output_dir, prefix, dx = 10, npass = 6, writeout=False,
 #
 # Main program
 
+def main(input_config):
+
 # Input data sets....
 
-input_dir         = input_config["input_dir"]
-output_dir        = input_config["output_dir"]
+    input_dir         = input_config["input_dir"]
+    output_dir        = input_config["output_dir"]
 
-filtered_filename = input_config["filtered_filename"]
-filter_dx         = input_config["filter_dx"]
-filter_npass      = input_config["filter_npass"]
-filtered_dirname  = "W_%2.2i" % filter_dx
-klevels           = input_config["klevels"]
-fprefix           = input_config["fprefix"]
+    filtered_filename = input_config["filtered_filename"]
+    filter_dx         = input_config["filter_dx"]
+    filter_npass      = input_config["filter_npass"]
+    filtered_dirname  = "W_%2.2i" % filter_dx
+    klevels           = input_config["klevels"]
+    fprefix           = input_config["fprefix"]
+    writeout          = input_config["writeout"]
     
-#------------------------------------------------------------------------------------
-#
+    #------------------------------------------------------------------------------------
+    #
 
-print("\n=======> FILTER W <=========\n")
-print("-------> Begin processing runs\n")
-print("-------> Parameter Filter SCALE: %d \n" % filter_dx)
-print("-------> Parameter        NPASS: %d \n" % filter_npass)
-print("-------> Parameter FILTERED FILE DIRECTORY: %s \n" % filtered_filename)
+    print("\n=======> FILTER W <=========\n")
+    print("-------> Begin processing runs\n")
+    print("-------> Parameter Filter SCALE: %d \n" % filter_dx)
+    print("-------> Parameter        NPASS: %d \n" % filter_npass)
+    print("-------> Parameter FILTERED FILE DIRECTORY: %s \n" % filtered_filename)
 
-for day in input_config["cases"]:
+    for day in input_config["cases"]:
     
-    # get zoom for plotting
+        # get zoom for plotting
 
-    newlat = input_config["zoom"][day][0:2]
-    newlon = input_config["zoom"][day][2:4]
+        try:
+            newlat = input_config["zoom"][day][0:2]
+            newlon = input_config["zoom"][day][2:4]
+        except:
+            newlat = None
+            newlon = None
 
-    for run in input_config["cases"][day]:
+        for run in input_config["cases"][day]:
         
-        print("\n----> Processing run: %s for day:  %s \n" % (run,day))
-        run_dir = str(os.path.join(input_dir, day, run))
-        out_dir = str(os.path.join(output_dir, day, run, filtered_dirname))
-        filter_ds(run_dir, out_dir, fprefix, dx=filter_dx, npass=filter_npass, writeout=True, newlat=newlat, newlon=newlon)
+            print("\n----> Processing run: %s for day:  %s \n" % (run,day))
+            run_dir = str(os.path.join(input_dir, day, run))
+            out_dir = str(os.path.join(output_dir, day, run, filtered_dirname))
+            filter_ds(run_dir, out_dir, fprefix, dx=filter_dx, npass=filter_npass, writeout=True, newlat=newlat, newlon=newlon)
         
-print("\n=======> End FILTER W <=======\n")
+    print("\n=======> End FILTER W <=======\n")
 
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("inputfile", type=str, help="Configuration file containing the processing dictionary for data")
+
+    args = parser.parse_args()
+
+    # got this from:  https://www.geeksforgeeks.org/how-to-dynamically-load-modules-or-classes-in-python/
+    try:
+        with open(args.inputfile) as file:    
+            input_dict = json.load(file)
+
+    except ImportError:
+        print ("input file not found: " + args.inputfile)
+
+    # got the dictionary?  Run it!
+
+    main(input_dict)
+    
