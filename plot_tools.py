@@ -38,7 +38,7 @@ def add_colorbar(plot, ax):
 
 #---------------------------------------------------------------------------------------------------------------
 
-def plot_w_from_xarray(ds, var='W', klevel=25, fhour=-1, title='', colormap='viridis', \
+def plot_w_from_xarray(ds, var='W', klevel=21, fhour=-1, title='', colormap='viridis', \
                        vmax=20, vmin=-10., contours=None, newlat=None, newlon=None, ax = None, cartopy=True, coords='latlonpres'):
      
     if ax != None:
