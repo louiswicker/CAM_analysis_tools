@@ -283,9 +283,10 @@ def get_spectraND(fld, func = get_spectra2D_RAD, **kwargs):
 # Plot spectral
 
 def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PScolor='k', 
-                 ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
+                 PSline='-', ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
+    from spectra.py_spectra import get_spectra2D_POWSPEC
     
     def update_ticks(x, pos):
         if x != 0.0:
@@ -317,7 +318,7 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
         axes = ax
         
     if loglog:
-        axes[0].loglog(waven, Abins, color=PScolor)
+        axes[0].loglog(waven, Abins, color=PScolor, linestyle=PSline)
         axes[0].set_xlim(2.0/waven.shape[0], 1.0)
 
         axes[0].annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
@@ -345,7 +346,7 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
             axes[0].loglog(xpt, ypt, color='red',linestyle='-.',label='k$^{-5/3}$')
 
     else:
-        axes[0].plot(waven, Abins, color=PScolor)
+        axes[0].plot(waven, Abins, color=PScolor, linestyle=PSline)
         axes[0].set_xlim(0.0, 1.0)
         
         axes[0].set_xticks(axes[0].get_xticks()) # see https://github.com/matplotlib/matplotlib/issues/18848
