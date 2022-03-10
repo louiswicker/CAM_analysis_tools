@@ -2,4 +2,5 @@
 **/*.so
 **/*cpython-*
 *.png
+*.pdf
 **/*.ipynb_checkpoints/
