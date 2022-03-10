@@ -1,0 +1,16 @@
+{   "config_name": "Run All",
+    "filter_dx": 12,
+    "filter_npass": 1,
+    "filtered_filename": "",
+    "fprefix": "econus",
+    "input_dir": "/work/larissa.reames",
+    "output_dir": "/work/wicker/CAM_case_studies",
+    "klevels": [25],
+    "writeout": false,
+    "cases": {
+               "2021052612": [ "hrrr"]
+              },
+    "zoom": {
+             "2021052612": [ 33.5, 43.0, -102.5, -97.0, 5 ]
+            }
+}

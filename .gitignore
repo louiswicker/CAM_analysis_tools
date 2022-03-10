@@ -1,0 +1,5 @@
+*.so
+**/*.so
+**/*cpython-*
+*.png
+**/*.ipynb_checkpoints/

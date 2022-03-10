@@ -283,9 +283,10 @@ def get_spectraND(fld, func = get_spectra2D_RAD, **kwargs):
 # Plot spectral
 
 def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PScolor='k', 
-                 ptitle='Power Spectra', loglog=1, LinsborgSlope = True, **kwargs):
+                 PSline='-', ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
+    from spectra.py_spectra import get_spectra2D_POWSPEC
     
     def update_ticks(x, pos):
         if x != 0.0:
@@ -317,13 +318,12 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
         axes = ax
         
     if loglog:
-        axes[0].loglog(waven, Abins, color=PScolor)
+        axes[0].loglog(waven, Abins, color=PScolor, linestyle=PSline)
         axes[0].set_xlim(2.0/waven.shape[0], 1.0)
 
         axes[0].annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
         axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(update_ticks))
-        
-        
+           
         ylim = axes[0].get_ylim()
         
         if 'ylabels' in kwargs:
@@ -338,15 +338,15 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
             axes[0].annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], ylabel), xycoords='data', color='k',fontsize=12)
             
         if LinsborgSlope:
-            xpt = [2.0/100.,2.0/8]
+            xpt = [2.0/16.,2.0/2.0]
             dlnx = np.log(xpt[1]) - np.log(xpt[0])
-            y0   = ylim[1]/(2.)
-            y1   = np.exp(np.log(y0) - 5./3. * dlnx)
+            y1   = ylim[1]/(10.)
+            y0   = np.exp(np.log(y1) + 5./3. * dlnx)
             ypt  = [y0,y1]
             axes[0].loglog(xpt, ypt, color='red',linestyle='-.',label='k$^{-5/3}$')
 
     else:
-        axes[0].plot(waven, Abins, color=PScolor)
+        axes[0].plot(waven, Abins, color=PScolor, linestyle=PSline)
         axes[0].set_xlim(0.0, 1.0)
         
         axes[0].set_xticks(axes[0].get_xticks()) # see https://github.com/matplotlib/matplotlib/issues/18848
@@ -358,7 +358,8 @@ def plot_spectra(fld, func = get_spectra2D_POWSPEC, legend = None, ax = None, PS
             
         axes[0].annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
 
-    axes[0].set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=16)
+    axes[0].set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=12)
+    axes[0].set_ylabel(r"KE Spectral Density (m$^3$ s$^{-2}$)", fontsize=16)
     
     if 'ylim' in kwargs:
         axes[0].set_ylim(kwargs.get('ylim'))
