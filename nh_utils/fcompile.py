@@ -8,7 +8,7 @@ import glob
 import string
 from optparse import OptionParser
 
-f2py_only    = ["fv_mapz.F90"]
+f2py_only    = ["sim_w_1d.f90"]
 
 fortran_only = []
 
