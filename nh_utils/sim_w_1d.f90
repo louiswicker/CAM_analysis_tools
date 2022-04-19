@@ -1,17 +1,17 @@
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, dm2, pm2, pem, w1, dz1, pt2, ws, p_fac, pe, dz2, w2)
+subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, dz2, pt2, ws, p_fac)
                         
-   integer, intent(in):: km
-   real,    intent(in):: dt, rgas, gama, kappa, p_fac
-   real,    intent(in), dimension(km):: dm2, pt2, pm2, gm2, cp2, dz1, w1
-   real,    intent(in )::  ws
+   integer, intent(in)  :: km
+   real,    intent(in)  :: dt, rgas, gama, kappa, p_fac
+   real,    intent(in), dimension(km):: dm2, pt2, pm2, gm2, cp2
+   real,    intent(in ) ::  ws
    real,    intent(in ), dimension(km+1):: pem
-   real,    intent(out) ::  pe(km+1), dz2(km), w2(km)
+   real,    intent(inout) ::  pe(km+1), dz2(km), w2(km)
 
 ! Local variables
 
-   real, dimension(km  ):: Ak, Bk, Rk, Ck, g_rat, bb, dd, aa, cc
+   real, dimension(km  ):: Ak, Bk, Rk, Ck, g_rat, bb, dd, aa, cc, dz1, w1
    real, dimension(km+1):: pp, gam, wE, dm2e, wES
    real  rdt, capa1, bet
 
@@ -24,6 +24,9 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, dm2, pm2, pem, w1, dz1,
     
      pe(k)   = exp(gama*log(-dm2(k)/dz1(k)*rgas*pt2(k))) - pm2(k)        
      dm2e(k) = dm2(k)
+    
+     w1(k)   = w2(k)
+     dz1(k)  = dz2(k)
         
    enddo
 
@@ -102,7 +105,7 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, dm2, pm2, pem, w1, dz1,
 
 ! Boundary value calc for forward tri-diagonal solution
 
-   Rk(2)  = Rk(2) - 0.0 * Ck(2)      ! this includes the lower bc for w zero here
+   Rk(2)  = Rk(2)  - 0.0 * Ck(2)    ! this includes the lower bc for w zero here
     
    Rk(km) = Rk(km) - 0.0 * Ck(km)   ! this includes the lower bc for w zero here
   
@@ -151,24 +154,13 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, dm2, pm2, pem, w1, dz1,
 
     enddo
     
-! Need to generate new w at cell centers...
+! Need to generate new w at cell centers...use the time tendency of dz
 
-!    w2(km) = 0.5 * wE(km)
-    
     do k = 1,km
-    
-      bb(k) = 2.*(1.+g_rat(k))
-      
-!w2(k) = (wE(k) + bb(k)*wE(k+1) + g_rat(k)*wE(k+2))*r3 - g_rat(k)*w2(k+1)
 
-     w2(k) = w1(k) + 0.5*(wE(k+1) + wE(k)) - 0.5*(wES(k+1) + wES(k))
+     w2(k) = w1(k) + rdt * (dz2(k) - dz1(k))
           
     enddo
-    
-    pe(1:km) = pp(:)
-    w2(1,km) = wE(2:km+1)
-    
-    return
     
 ! Retrieve edge pressures
 
