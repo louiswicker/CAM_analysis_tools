@@ -2,17 +2,19 @@
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, dz2, pt2, ws, p_fac)
                         
-   integer, intent(in)  :: km
-   real,    intent(in)  :: dt, rgas, gama, kappa, p_fac
-   real,    intent(in), dimension(km):: dm2, pt2, pm2, gm2, cp2
-   real,    intent(in ) ::  ws
-   real,    intent(in ), dimension(km+1):: pem
-   real,    intent(inout) ::  pe(km+1), dz2(km), w2(km)
+   integer,       intent(in)  :: km
+   real(kind=4),  intent(in)  :: dt, rgas, gama, kappa, p_fac
+   real(kind=4),  intent(in), dimension(km):: dm2, pt2, pm2, gm2, cp2
+   real(kind=4),  intent(in ) ::  ws
+   real(kind=4),  intent(in ), dimension(km+1):: pem
+   real(kind=4),  intent(inout) ::  pe(km+1), dz2(km), w2(km)
+   
+   !f2py intent(overwrite) :: pe, dz2, w2
 
 ! Local variables
 
-   real, dimension(km  ):: Ak, Bk, Rk, Ck, g_rat, bb, dd, aa, cc, dz1, w1
-   real, dimension(km+1):: pp, gam, wE, dm2e, wES
+   real(kind=4), dimension(km  ):: Ak, Bk, Rk, Ck, g_rat, bb, dd, aa, cc, dz1, w1
+   real(kind=4), dimension(km+1):: pp, gam, wE, dm2e, wES
    real  rdt, capa1, bet
 
    rdt   = 1. / dt
@@ -22,12 +24,12 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
    do k = 1,km
     
-     pe(k)   = exp(gama*log(-dm2(k)/dz1(k)*rgas*pt2(k))) - pm2(k)        
+     pe(k)   = exp(gama*log(-dm2(k)/dz2(k)*rgas*pt2(k))) - pm2(k)        
      dm2e(k) = dm2(k)
     
      w1(k)   = w2(k)
      dz1(k)  = dz2(k)
-        
+    
    enddo
 
    dm2e(km+1) = dm2(km)
@@ -75,10 +77,6 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
         
     enddo
     
-! Validated the wE here.
-
-   wES(:) = wE(:)
-    
 ! Compute cell centered tridiagonal coefficients 
 
     do k = 1, km
@@ -93,7 +91,7 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
       cc(k) = dt / (0.5 * (dm2(k) + dm2(k-1))) 
         
-      Bk(k) = 1.0 + cc(k) * (aa(k-1) - aa(k))
+      Bk(k) = 1.0 - cc(k) * (aa(k-1) + aa(k))
     
       Ak(k) = aa(k-1)*cc(k)
         
@@ -107,23 +105,23 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
    Rk(2)  = Rk(2)  - 0.0 * Ck(2)    ! this includes the lower bc for w zero here
     
-   Rk(km) = Rk(km) - 0.0 * Ck(km)   ! this includes the lower bc for w zero here
+   Rk(km) = Rk(km) - 0.0 * Ck(km)   ! this includes the lower bc for ws  (zero here)
   
 ! Forward sweep.
 
-    bet    = Bk(2)
+    bet   = Bk(2)
 
-    wE(1)  = 0.0
+    wE(1) = 0.0
     
-    wE(2)  = Rk(2) / bet
+    wE(2) = Rk(2) / bet
     
     do k = 3, km
 
-      gam(k)  = Ck(k-1) / bet
+      gam(k) = Ck(k-1) / bet
         
-      bet     = Bk(k) - Ak(k) * gam(k)
+      bet    = Bk(k) - Ak(k) * gam(k)
 
-      wE(k)   = (Rk(k) - wE(k-1) ) / bet
+      wE(k)  = (Rk(k) - Ak(k)*wE(k-1) ) / bet
 
     enddo
     
@@ -158,8 +156,9 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
     do k = 1,km
 
-     w2(k) = w1(k) + rdt * (dz2(k) - dz1(k))
-          
+     !w2(k) = w1(k) - rdt * (dz2(k) - dz1(k))
+     w2(k) = 0.5*(wE(k) + wE(k+1))
+        
     enddo
     
 ! Retrieve edge pressures
@@ -168,7 +167,7 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
     do k = 1,km
       
-      pe(k+1) = pe(k) + dm2(k)*(w2(k)-w1(k))*rdt
+      pe(k+1) = pe(k) + dm2(k)*(w2(k) - w1(k))*rdt
         
     enddo
     
