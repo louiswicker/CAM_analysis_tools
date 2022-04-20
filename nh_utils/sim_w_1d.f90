@@ -57,11 +57,11 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
        
 ! Forward calculation of tri-diagonal system
 
-    do k=2,km
+    do k = 2, km
     
       gam(k)  =  g_rat(k-1) / bet
       bet     =  bb(k) - gam(k)
-      wE(k+1) = (dd(k) - wE(k) ) / bet
+      wE(k+1) = (dd(k) - aa(k)*wE(k) ) / bet
          
     enddo
 
@@ -89,7 +89,7 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
     do k = 2, km
 
-      cc(k) = dt / (0.5 * (dm2(k) + dm2(k-1))) 
+      cc(k) = 2.0 * dt / (dm2(k) + dm2(k-1))
         
       Bk(k) = 1.0 - cc(k) * (aa(k-1) + aa(k))
     
@@ -103,6 +103,8 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
 ! Boundary value calc for forward tri-diagonal solution
 
+   Ck(1)  = 0.0
+
    Rk(2)  = Rk(2)  - 0.0 * Ck(2)    ! this includes the lower bc for w zero here
     
    Rk(km) = Rk(km) - 0.0 * Ck(km)   ! this includes the lower bc for ws  (zero here)
@@ -112,10 +114,8 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
     bet   = Bk(2)
 
     wE(1) = 0.0
-    
-    wE(2) = Rk(2) / bet
-    
-    do k = 3, km
+        
+    do k = 2, km
 
       gam(k) = Ck(k-1) / bet
         
@@ -125,7 +125,8 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
     enddo
     
-    wE(km+1) = 0.0
+    wE(km+1)  = 0.0
+    gam(km+1) = 0.0
             
 ! Back substitution for solution (wE = 0 at k=1)
 
@@ -142,7 +143,6 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
       pp(k)  = pe(k) - aa(k) * (wE(k+1) - wE(k))
 
     enddo
-    
     
 ! Use new pp at cell centers to get new dz's
 
@@ -167,7 +167,8 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
 
     do k = 1,km
       
-      pe(k+1) = pe(k) + dm2(k)*(w2(k) - w1(k))*rdt
+      !pe(k+1) = pe(k) + dm2(k)*(w2(k) - w1(k))*rdt
+      pe(k+1) = pe(k) + pp(k)
         
     enddo
     
