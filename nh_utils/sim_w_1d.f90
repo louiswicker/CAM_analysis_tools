@@ -154,54 +154,33 @@ subroutine SIM_W_1D(dt, km, rgas, gama, gm2, cp2, kappa, pe, dm2, pm2, pem, w2, 
         
     enddo
     
-! Set up tridiagonal coeffs for spline interpolation of pe to grid edges.
-
-    do k = 2,km
-       
-      g_rat(k) = dm2e(k-1)/dm2e(k)
+! Edge code from original nh_utils/SIM1
     
-      aa(k)    = 1.0
-      bb(k)    = 2.*(1.+g_rat(k))
-      cc(k)    = g_rat(k)
-      dd(k)    = 3.*(pp(k) + cc(k)*pp(k+1))
-
-    enddo
-    
-! Boundary conditions for wE = 0 at top
-
-    g_rat(km+1) = 1.0
-   
-    aa(km+1) = 1.0
-    bb(km+1) = 4.0
-    cc(km+1) = 1.0
-    
-    pe(1) = 0.0
-    
-!    bb(km+1) = 2.
-    dd(km+1) = 3.*pp(km)
-       
-! Forward calculation of tri-diagonal system  # VBA algorithm from Wikipedia
-
-    do k = 3, km+1
-    
-      bet   = aa(k) / bb(k-1)
-      bb(k) = bb(k) - bet * cc(k-1)
-      dd(k) = dd(k) - bet * dd(k-1)
-         
+    do k=1,km-1
+      g_rat(k) = dm2(k)/dm2(k+1)
+         bb(k) = 2.*(1.+g_rat(k))
+         dd(k) = 3.*(pp(k) + g_rat(k)*pp(k+1))
     enddo
 
-! Solve for the last value of matrix
-        
-      pe(km)   = dd(km) / bb(km)
+    bet = bb(1)
+    pp(1) = 0.
+    pp(2) = dd(1) / bet
+    bb(km) = 2.
+    dd(km) = 3.*pp(km)
 
-! Do the back substition, result is wE on zone edges.
+! Forward calculation of tri-diagonal system
 
-    do k = km-1, 2, -1
-
-      pe(k) = (dd(k) - cc(k) * pe(k+1)) / bb(k)
-
+    do k=2,km
+      gam(k) =  g_rat(k-1) / bet
+      bet    =  bb(k) - gam(k)
+      pe(k+1) = (dd(k) - pe(k) ) / bet
     enddo
-        
+
+! Do the back substition, result is pp on zone edges.
+
+    do k=km, 2, -1
+       pe(k) = pe(k) - gam(k)*pe(k+1)
+    enddo
     
 ! Retrieve edge pressures
 
