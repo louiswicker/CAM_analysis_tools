@@ -41,6 +41,24 @@ plevels = np.asarray([100000.,  97500.,  95000.,  92500.,  90000.,  87500.,  850
 nz_new = plevels.shape[0]
 
 #--------------------------------------------------------------------------------------------------
+# Code from Joel McClune to convert dictionaries to objects
+
+class DictObj:
+    def __init__(self, in_dict:dict):
+        assert isinstance(in_dict, dict)
+        for key, val in in_dict.items():
+            if isinstance(val, (list, tuple)):
+               setattr(self, key, [DictObj(x) if isinstance(x, dict) else x for x in val])
+            else:
+               setattr(self, key, DictObj(val) if isinstance(val, dict) else val)
+            
+# Code to read a dictionary written to a pickle file, and convert to a object
+            
+def pickle2Obj(file):
+    with open(file, 'rb') as f:
+        return(DictObj(pickle.load(f)))
+
+#--------------------------------------------------------------------------------------------------
 # Special thanks to Scott Ellis of DOE for sharing codes for reading grib2
 
 def grbFile_attr(grb_file):
@@ -750,7 +768,7 @@ def generate_ideal_profiles(run_dir, model_type='wrf', w_thresh = 5.0, cref_thre
     
         if compDBZ:
             
-            print("\n  ...computing new 4D DBZ\n")
+            print("\n  Checking to see if REFL_10CM exists\n")
             
         # Need to run through all the datasets and create REFL_10CM, and write back out...
         
