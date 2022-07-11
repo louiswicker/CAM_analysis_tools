@@ -10,6 +10,8 @@ import pygrib
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from datetime import datetime
+import cftime
+import pickle
 
 from cmpref import cmpref_mod as cmpref
 
@@ -54,10 +56,12 @@ class DictObj:
             
 # Code to read a dictionary written to a pickle file, and convert to a object
             
-def pickle2Obj(file):
+def pickle2Obj(file, retObj=True):
     with open(file, 'rb') as f:
-        return(DictObj(pickle.load(f)))
-
+        if retObj == True:
+            return(DictObj(pickle.load(f)))
+        else:
+            return(pickle.load(f))
 #--------------------------------------------------------------------------------------------------
 # Special thanks to Scott Ellis of DOE for sharing codes for reading grib2
 
@@ -592,7 +596,7 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
             print("Reading:  %s " % os.path.join(run_dir,filename))
             ds = xr.open_dataset(os.path.join(run_dir,filename))
         else:
-            ds = xr.open_dataset(os.path.join(run_dir, "*.nc"))
+            ds = xr.open_dataset(os.path.join(run_dir, "*.nc"), decode_times=False)
         
         z3d    = ds.delz.values[:,::-1,:,:]
         z3d    = - np.cumsum(z3d,axis=1)
