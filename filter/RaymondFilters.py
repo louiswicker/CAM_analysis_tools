@@ -430,7 +430,7 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
     
     #---------------------------------------------------------------------------------------------
     
-    def Filter1D(XY, EPS, A):
+    def Filter1D(XY, EPS, A, **kwargs):
         """
         Compute solution for 1D column Raymond's 1988 6th order implicit tangent filter.
 
@@ -443,9 +443,9 @@ def RaymondFilter6(xy2d, eps, npass = 1, nthreads=nthreads, **kwargs):
         Lou Wicker, Oct 2021 
         """
                   
-        # if 'bc_reflect' in kwargs:
-        #     bc_reflect = kwargs.get('bc_reflect')
-        #     print("Filter1D:  bc_reflect = ", bc_reflect)
+        if 'bc_reflect' in kwargs:
+            bc_reflect = kwargs.get('bc_reflect')
+            print("Filter1D:  bc_reflect = ", bc_reflect)
 
         N  = XY.shape[0]
         
