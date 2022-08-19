@@ -33,7 +33,10 @@ plevels = np.asarray([100000.,  97500.,  95000.,  92500.,  90000.,  87500.,  850
 plevels = np.asarray([75000.,  72500.,  70000.,  67500.,  65000.,
                       37500.,  35000.,  32500.,  30000.,  27500.])
 
-zlevels = 1000. + 250.*np.arange(45)
+z1 = 1000. + 250.*np.arange(33)    # 250 m below 9000, 500 m above
+z2 = 9500. + 500.*np.arange(12)
+z3 = 15000. + 1000.*np.arange(4)
+zlevels = np.concatenate((z1, z2, z3))
 
 # Helper functions......
 
@@ -125,8 +128,11 @@ def interp_fields(in_dir, day, out_dir):
     hrrr_dir  = str(os.path.join(in_dir, day, "hrrr"))
     rrfs_dir = str(os.path.join(in_dir, day, "rrfs_b"))
 
-    hrrr = open_mfdataset_list(hrrr_dir , "*HRRR_ECONUS.nc")
-    rrfs = open_mfdataset_list(rrfs_dir, "*RRFSB_ECONUS.nc")
+#   hrrr = open_mfdataset_list(hrrr_dir , "*HRRR_ECONUS.nc")
+#   rrfs = open_mfdataset_list(rrfs_dir, "*RRFSB_ECONUS.nc")
+
+    hrrr = open_mfdataset_list(hrrr_dir , "*HRRR_CONUS.nc")
+    rrfs = open_mfdataset_list(rrfs_dir, "*RRFSB_CONUS.nc")
 
     tic = time.perf_counter()
     
@@ -137,6 +143,8 @@ def interp_fields(in_dir, day, out_dir):
     w_hrrr = interp4d_np(np.nan_to_num(hrrr.wz.values).astype('float32'), 
                          np.nan_to_num(hrrr.gh.values).astype('float32'), zlevels)
     d_hrrr = interp4d_np(np.nan_to_num(hrrr.refl10cm.values).astype('float32'), 
+                         np.nan_to_num(hrrr.gh.values).astype('float32'), zlevels)
+    p_hrrr = interp4d_np(np.nan_to_num(hrrr.pres.values).astype('float32'), 
                          np.nan_to_num(hrrr.gh.values).astype('float32'), zlevels)
     
     print("HRRR file interpolated")
@@ -149,6 +157,7 @@ def interp_fields(in_dir, day, out_dir):
     ds = xr.Dataset( data_vars=dict(u_interp=(['fhour',"nz","ny","nx"], u_hrrr),
                                     v_interp=(['fhour',"nz","ny","nx"], v_hrrr),
                                     w_interp=(['fhour',"nz","ny","nx"], w_hrrr),
+                                    p_interp=(['fhour',"nz","ny","nx"], p_hrrr),
                                   dbz_interp=(['fhour',"nz","ny","nx"], d_hrrr)),
                      coords={'fhour': (["fhour"],   hrrr.fhour.values),
                                  'z': (["nz"],      zlevels),
@@ -173,6 +182,8 @@ def interp_fields(in_dir, day, out_dir):
                          np.nan_to_num(rrfs.gh.values).astype('float32'), zlevels)
     d_rrfs = interp4d_np(np.nan_to_num(rrfs.refl10cm.values), 
                          np.nan_to_num(rrfs.gh.values).astype('float32'), zlevels)
+    p_rrfs = interp4d_np(np.nan_to_num(rrfs.pres.values), 
+                         np.nan_to_num(rrfs.gh.values).astype('float32'), zlevels)
     
     print("RRFS file interpolated")
     
@@ -183,6 +194,7 @@ def interp_fields(in_dir, day, out_dir):
     ds = xr.Dataset( data_vars=dict(u_interp=(['fhour',"nz","ny","nx"], u_rrfs),
                                     v_interp=(['fhour',"nz","ny","nx"], v_rrfs),
                                     w_interp=(['fhour',"nz","ny","nx"], w_rrfs),
+                                    p_interp=(['fhour',"nz","ny","nx"], p_rrfs),
                                   dbz_interp=(['fhour',"nz","ny","nx"], d_rrfs)),
                  coords={'fhour': (["fhour"],   rrfs.fhour.values),
                              'z': (["nz"],      zlevels),
@@ -200,7 +212,7 @@ def interp_fields(in_dir, day, out_dir):
 
 #-------------------------------
 in_dir  = "/work/larissa.reames"
-out_dir = "/work/wicker/CAM_analysis_tools"
+out_dir = "/work/wicker/CAM_analysis_tools/CONUS"
 case_days = ["2022050400",
             "2022051200",
             "2022051400",
@@ -209,8 +221,8 @@ case_days = ["2022050400",
             "2022052300",
             "2022052400",
             "2022052700",
-            "2022053000",
-            "2022060700"]
+            "2022053000"]
+case_days = ["2022060700"]
 
 for day in case_days:
     print("\nProcessing day:  %s" % day)

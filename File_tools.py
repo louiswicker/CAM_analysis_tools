@@ -6,9 +6,7 @@ import glob as glob
 import os as os
 import glob
 import sys as sys
-import pygrib
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
+
 from datetime import datetime
 import cftime
 import pickle
@@ -168,6 +166,10 @@ def quickplotgrib(file, klevel= 20, cmap = 'turbo', ax=None, filetype='hrrr', \
         
         LJW December 2021
     """
+    
+    import cartopy.feature as cfeature
+    import cartopy.crs as ccrs
+    import pygrib
     
     # open file
 
