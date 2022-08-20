@@ -58,6 +58,8 @@ def remove_trend(fld, print_info):
     
     """
     
+    print("Calling detrend")
+    
     ny, nx = fld.shape
     
     sy = (fld[-1,:] - fld[0,:]) / (ny-1)
@@ -131,61 +133,6 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., **kwargs):
     print(spectrum.max(), spectrum.min())
 
     return len_scale_bands[::-1], spectrum, waven[::-1]
-
-
-#-------------------------------------------------------------------------------------
-# 2D Spectra from the fourier spectrum package from jfrob27's pywaven package
-
-def get_spectra2D_POWSPEC(fld, axis=0, **kwargs):
-    """
-    Returns 1D power spectra from a 2D field 
-        
-    Input:  2D floating pont array
-    
-    Returns:  kvals:  mean wavenumber in each bin
-              PSbins: power spectra which has been binned into kbins
-              waven:  wavenumber (0 - 1) in non-dimensional space.
-    """
-    
-    try:
-        from pywavan import powspec
-    except:
-        print("\n PYWAVAN is not installed, exiting\n")
-        sys.exit(-1)
-
-    if 'print_info' in kwargs:
-        print_info = kwargs['print_info']
-    else:
-        print_info = True
-        
-    if 'detrend' in kwargs:
-        detrend = kwargs['detrend']
-    else:
-        detrend = False
-
-    if print_info:
-        print("\n------------------------\n")
-        print("get_spectra2D_POWSPEC powspec called\n")
-
-    if detrend:
-        fld2 = remove_trend(square_grid(fld, print_info), print_info)
-    else:
-        fld2 = square_grid(fld, print_info)
-    
-    ny, nx = fld2.shape
-        
-    waven, PSbins = powspec(fld2, reso=1., zeromean=False)
-
-    kbins = np.arange(0.5, (nx+1)//2-1, 1.)
-    kvals = 0.5 * (kbins[1:] + kbins[:-1])
-    wavenumber = 2*(kvals-1)/nx
-
-    PSbins = PSbins * np.pi * (kbins[1:]**2 - kbins[:-1]**2)
-            
-    if print_info:
-            print("------------------------\n")
-    
-    return kbins, PSbins, 2*waven
 
 #-------------------------------------------------------------------------------------
 # 2D Spectra
@@ -329,7 +276,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
                  PSline='-', ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
-    from spectra.py_spectra import get_spectra2D_RAD, get_spectra2D_POWSPEC
+    from spectra.py_spectra import get_spectra2D_RAD
     
     if 'print_info' in kwargs:
         print_info = kwargs['print_info']
