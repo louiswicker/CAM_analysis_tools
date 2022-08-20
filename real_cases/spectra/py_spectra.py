@@ -54,34 +54,49 @@ def square_grid(fld, print_info):
 
 def remove_trend(fld, print_info):
     """
-    Implementing Errico's (MWR 1985) 2D detrending algorithm
+    Implementing Errico's (MWR 1985) 1D / 2D detrending algorithm
     
     """
-    
-    print("Calling detrend")
-    
-    ny, nx = fld.shape
-    
-    sy = (fld[-1,:] - fld[0,:]) / (ny-1)
+    if len(fld.shape) == 1:
         
-    scale = 0.5*(2*np.arange(1,ny+1) - ny - 1)
-    
-    scale2d = np.broadcast_to(scale[:,np.newaxis], fld.shape)
-    
-    sy2d    = np.broadcast_to(   sy[np.newaxis,:], fld.shape)
-    
-    fldy = fld - scale2d*sy2d
-    
-    sx = (fldy[:,-1] - fldy[:,0]) / (nx-1)
-    
-    scale = 0.5*(2*np.arange(1,nx+1) - nx - 1)
-    
-    scale2d = np.broadcast_to(scale[np.newaxis,:], fld.shape)
-    sx2d    = np.broadcast_to(   sx[:,np.newaxis], fld.shape)
-    
-    fldxy = fldy - scale2d*sx2d
+        ny = fld.shape
         
-    return fldxy
+        sy = (fld[-1] - fld[0]) / (ny-1)
+        
+        scale = 0.5*(2*np.arange(1,ny+1) - ny - 1)
+        
+        fldy = fld - sy*scale
+        
+        return fldy
+        
+    elif len(fld.shape) == 2:
+        
+        ny, nx = fld.shape
+
+        sy = (fld[-1,:] - fld[0,:]) / (ny-1)
+
+        scale = 0.5*(2*np.arange(1,ny+1) - ny - 1)
+
+        scale2d = np.broadcast_to(scale[:,np.newaxis], fld.shape)
+
+        sy2d    = np.broadcast_to(   sy[np.newaxis,:], fld.shape)
+
+        fldy = fld - scale2d*sy2d
+
+        sx = (fldy[:,-1] - fldy[:,0]) / (nx-1)
+
+        scale = 0.5*(2*np.arange(1,nx+1) - nx - 1)
+
+        scale2d = np.broadcast_to(scale[np.newaxis,:], fld.shape)
+        sx2d    = np.broadcast_to(   sx[:,np.newaxis], fld.shape)
+
+        fldxy = fldy - scale2d*sx2d
+
+        return fldxy
+    
+    else:
+        print("Remove_trend:  Input array has invalid shape of:  %d, stopping code" % fld.shape)
+        sys.exit(1)
 
 #-------------------------------------------------------------------------------------
 def get_spectra2D_DCT(fld, dx=1., dy=1., **kwargs):
