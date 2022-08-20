@@ -6,7 +6,17 @@ from matplotlib import colors, ticker
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 
+_header = '-' * 100
+_sep1   = ' ' * 10
+_sep2   = ' ' * 20
 
+#-------------------------------------------------------------------------------------
+def update_ticks(x, pos):
+    if x != 0.0:
+        return "%2.1f" % (2.0/x)
+    else:
+        return r'$\infty$'
+    
 #-------------------------------------------------------------------------------------
 def square_grid(fld, print_info):
 
@@ -148,22 +158,23 @@ def get_spectra2D_POWSPEC(fld, axis=0, **kwargs):
     else:
         print_info = True
         
-    if 'zeromean' in kwargs:
-        zeromean = kwargs['zeromean']
+    if 'detrend' in kwargs:
+        detrend = kwargs['detrend']
     else:
-        zeromean = False
+        detrend = False
 
     if print_info:
         print("\n------------------------\n")
         print("get_spectra2D_POWSPEC powspec called\n")
 
-    fld1 = square_grid(fld, print_info)
-    
-    fld2 = remove_trend(fld1, print_info)
+    if detrend:
+        fld2 = remove_trend(square_grid(fld, print_info), print_info)
+    else:
+        fld2 = square_grid(fld, print_info)
     
     ny, nx = fld2.shape
         
-    waven, PSbins = powspec(fld2, reso=1., zeromean=zeromean)
+    waven, PSbins = powspec(fld2, reso=1., zeromean=False)
 
     kbins = np.arange(0.5, (nx+1)//2-1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
@@ -179,7 +190,7 @@ def get_spectra2D_POWSPEC(fld, axis=0, **kwargs):
 #-------------------------------------------------------------------------------------
 # 2D Spectra
 
-def get_spectra2D_RAD(fld, varray = None, **kwargs):
+def get_spectra2D_RAD(fld, varray = None, sep=_sep1, **kwargs):
     """
     Returns 1D power spectra from a 2D field where 2D spectrum is averaged into radial bins.
     There are several caveats.  First, the shape of the fld array must be square.  If it is not square, 
@@ -208,27 +219,25 @@ def get_spectra2D_RAD(fld, varray = None, **kwargs):
     else:
         print_info = False
         
-    if 'zeromean' in kwargs:
-        zeromean = kwargs['zeromean']
+    if 'detrend' in kwargs:
+        detrend = kwargs['detrend']
     else:
-        zeromean = False
+        detrend = False
         
-    if print_info:
-        print("\n------------------------")
-        print("get_spectra2D_RAD called\n")
-               
-    u = square_grid(fld, print_info)
+    # print("%sget_spectra2D_RAD: computing spectra" % sep)  
     
+    if detrend:
+        u = remove_trend(square_grid(fld, print_info), print_info)
+    else:
+        u = square_grid(fld, print_info)
+
     ny, nx = u.shape
-            
-    if zeromean == True:
-        u -= np.mean(u)
-    
+                
     if type(varray) != type(None):
-        print(varray.shape)
-        v = square_grid(varray, print_info)
-        if zeromean == True:
-            v -= np.mean(v)
+        if detrend:
+            v = remove_trend(square_grid(varray, print_info), print_info)
+        else:
+            v = square_grid(varray, print_info)
                    
     # assumes raw array are passed, computing using Durran's method
         
@@ -256,16 +265,13 @@ def get_spectra2D_RAD(fld, varray = None, **kwargs):
     
     PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
     wavenumber = 2*(kvals-1)/nx
-    
-    if print_info:
-        print("------------------------\n")
-    
+        
     return kvals, PSbins, wavenumber
 
 #-------------------------------------------------------------------------------------
 # 3D Spectra
 
-def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, **kwargs):
+def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, sep = _sep1, **kwargs):
     """
     Returns average spectra from ND data set where the power spectra computed along
     the last two dimensions (often assumed to be x & y).  The input array can have
@@ -276,13 +282,9 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, **kwargs):
     over the first dimensions, but one can return the 3D array of spectra. 
     """
     
-    print("\n----------------------")
-    print("get_spectraND called")
-    print("----------------------\n")
-
-    
     if fld.ndim < 3:
-        print("get_spectraND:  Array is wrong size, input array must have at least 3 dimensions\n")
+        print("%s%s" % (sep, _header))
+        print("%sget_spectraND: Array is wrong size, input array must have at least 3 dimensions\n" % (_sep1))
         return None
     
     if fld.ndim > 2:
@@ -294,55 +296,71 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, **kwargs):
         fld3d = np.reshape(fld.copy(), fshape[:start] + (-1,) + fshape[start+count:])
                     
         if fld.ndim > 3:
-            print("get_spectraND:  Reshaped array so that spectra averaged over outer dimension: %d\n" % fld3d.shape[0])
+            print("%s%s" % (_sep1, _header))
+            print("%sget_spectraND: Reshaped array so that spectra averaged over outer dimension: %d\n" % (_sep1, fld3d.shape[0]))
 
         Abins = []
+        
+        print("%s%s" % (_sep2, _header))
+        print("%s%s is now being called" % (_sep2, func.__name__))
         
         if type(varray) != type(None):
             
             fld3d_v = np.reshape(varray.copy(), fshape[:start] + (-1,) + fshape[start+count:])
 
             for k in np.arange(fld3d.shape[0]):
-                kvals, A, waven = func(fld3d[k], varray = fld3d_v[k], **kwargs)
+                kvals, A, waven = func(fld3d[k], varray = fld3d_v[k], sep = _sep2, **kwargs)
                 Abins.append(A)
         else:
             
             for k in np.arange(fld3d.shape[0]):
-                kvals, A, waven = func(fld3d[k], **kwargs)
+                kvals, A, waven = func(fld3d[k], sep = _sep2, **kwargs)
                 Abins.append(A)
 
         Abins = np.asarray(Abins)
+        
+        print("\n")
         
         return kvals, Abins.mean(axis=0), waven
 #-------------------------------------------------------------------------------------
 # Plot spectral
 
-def plot_spectra(fld, varray = None, func = get_spectra2D_POWSPEC, legend = None, ax = None, PScolor='k', 
+def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, PScolor='k', 
                  PSline='-', ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
-    from spectra.py_spectra import get_spectra2D_POWSPEC
+    from spectra.py_spectra import get_spectra2D_RAD, get_spectra2D_POWSPEC
     
     if 'print_info' in kwargs:
         print_info = kwargs['print_info']
     else:
         print_info = False
-    
-    def update_ticks(x, pos):
-        if x != 0.0:
-            return "%2.1f" % (2.0/x)
-        else:
-            return r'$\infty$'
+        
+    if 'detrend' in kwargs:
+        detrend = kwargs['detrend']
+    else:
+        detrend = False
+        
+       
+    print("%s" % _header)
+    print("plot_spectra: Computing power spectrum using function: %s" % (func.__name__))
+    if type(varray) == type(None):
+        print("plot_spectra: Spectrum from a single variable")
+    else:
+        print("plot_spectra: Spectrum computed for KE")
+    print("plot_spectra: DETREND = %s\n" % (detrend))
+        
+    # This next set of code does most of the work
         
     if len(fld.shape) < 3:  
                 
-        kvals, Abins, waven = func(fld, varray = None, func=func **kwargs)
+        kvals, Abins, waven = func(fld, varray = varray, func=func, sep=_sep1, **kwargs)
         
     else:
                 
-        kvals, Abins, waven = get_spectraND(fld, varray = None, func = func, **kwargs)
+        kvals, Abins, waven = get_spectraND(fld, varray = varray, func = func, sep=_sep2, **kwargs)
 
-    if True:
+    if print_info:
         print('kvals: ',kvals.shape, kvals)
         print('PS: ', Abins.shape, Abins)
         print('wavenumber: ',waven.shape, waven)
@@ -401,13 +419,12 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_POWSPEC, legend = None
         axes[0].annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
 
     axes[0].set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=12)
-    axes[0].set_ylabel(r"KE Spectral Density (m$^3$ s$^{-2}$)", fontsize=16)
+    axes[0].set_ylabel(r"%s Spectral Density (m$^3$ s$^{-2}$)" % ptitle, fontsize=16)
     
     if 'ylim' in kwargs:
         axes[0].set_ylim(kwargs.get('ylim'))
 
     plt.title(ptitle, fontsize=18)
-    
     
     if ax == None: 
         plt.show()
