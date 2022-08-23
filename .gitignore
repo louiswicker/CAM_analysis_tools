@@ -6,3 +6,4 @@
 **/*.ipynb_checkpoints/
 input_sounding*
 */*.so
+**/*.pkl
