@@ -1,7 +1,7 @@
 import os, sys, argparse, cmath
 import pylab as pl
 import numpy as np
-from scipy.fftpack import dct
+from scipy.fft import dct
 from matplotlib import colors, ticker
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 _header = '-' * 100
 _sep1   = ' ' * 10
 _sep2   = ' ' * 20
+
+_dct_type = 2
 
 #-------------------------------------------------------------------------------------
 def update_ticks(x, pos):
@@ -99,7 +101,7 @@ def remove_trend(fld, print_info):
         sys.exit(1)
 
 #-------------------------------------------------------------------------------------
-def get_spectra2D_DCT(fld, dx=1., dy=1., **kwargs):
+def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
     """
     Code based on Nate Snook's implementation of the algorithm in Surcel et al. (2014)
 
@@ -111,43 +113,67 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., **kwargs):
         the power at each length scale.
     """
 
+    # get some kwargs
+    
     if 'print_info' in kwargs:
         print_info = kwargs['print_info']
     else:
         print_info = False
-
-    fld2 = square_grid(fld, print_info)
-    
-    spectrum_2d = dct(dct(fld2, axis=0, norm='ortho'), axis=1, norm='ortho')
-    
-    npj, npi = spectrum_2d.shape
-    variance = spectrum_2d ** 2 / (npj * npi)
-
-    j_s, i_s = np.meshgrid(np.arange(npj), np.arange(npi))
-    wavenumber = np.hypot(j_s / float(npj), i_s / float(npi))
-
-    wn_band_max = min(npj, npi)
-    
-    wn_bands = np.arange(1., wn_band_max) / wn_band_max
-    
-    len_scale_bands = dx / wn_bands
-
-    spectrum = np.zeros(wn_bands.shape)
-
-    for iband in range(wn_bands.shape[0] - 1):
-        band_power = np.where((wavenumber.T >= wn_bands[iband]) & (wavenumber.T <= wn_bands[iband + 1]), variance, 0)
-        spectrum[iband] = band_power.sum()
         
-    waven = 2*(len_scale_bands)/npi
-        
-    # if 'print_info':
-    #     print('kvals: ',len_scale_bands.shape, len_scale_bands)
-    #     print('PS: ', spectrum.shape,spectrum)
-    #     print('wavenumber: ',waven.shape, waven)
+    if 'detrend' in kwargs:            # dont need to detrend data for DCT-II transform.
+        detrend = kwargs['detrend']
+    else:
+        detrend = False
     
-    print(spectrum.max(), spectrum.min())
+    u = square_grid(fld, print_info)
+    
+    if type(varray) != type(None):
+        
+        v = square_grid(varray, print_info)
+            
+    # compute spectra
+    
+    ny, nx = u.shape
 
-    return len_scale_bands[::-1], spectrum, waven[::-1]
+    if type(varray) == type(None):
+        
+        variance = 0.5*dct(dct(u, axis=0, type=_dct_type, norm='ortho'), axis=1, type=_dct_type, norm='ortho')**2
+        
+    else:
+        
+        variance = 0.5*(dct(dct(u, axis=0, type=_dct_type, norm='ortho'), axis=1, type=_dct_type, norm='ortho')**2 \
+                       +dct(dct(v, axis=0, type=_dct_type, norm='ortho'), axis=1, type=_dct_type, norm='ortho')**2)
+           
+    kfreq   = np.fft.fftfreq(nx) * nx
+    kfreq2D = np.meshgrid(kfreq, kfreq)
+    
+    knrm   = np.sqrt(kfreq2D[0]**2 + kfreq2D[1]**2)
+    knrm2  = 0.5*(knrm[1:,:] + knrm[:-1,:])
+    knrm   = 0.5*(knrm2[:,1:] + knrm2[:,:-1])
+    knrm   = knrm[:ny//2,:nx//2].flatten()
+    
+    # In order to make this similar to the DFT, you need to shift variances
+    
+    variance2 = np.zeros((ny,nx//2))
+    variance3 = np.zeros((ny//2,nx//2))
+    
+    for i in np.arange(1,nx//2):   
+        variance2[:,i-1] = variance[:,2*i-1] + variance[:,2*i]
+
+    for j in np.arange(1,ny//2):   
+        variance3[j-1,:] = variance2[2*j-1,:] + variance2[2*j,:]
+
+    variance = variance3.flatten()
+    
+    kbins = np.arange(0.5, nx//2+1, 1.)
+    kvals = 0.5 * (kbins[1:] + kbins[:-1])
+    PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "mean", bins = kbins)
+    
+    PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+    
+    waven = 2.*kvals / nx
+            
+    return kvals, PSbins, waven
 
 #-------------------------------------------------------------------------------------
 # 2D Spectra
@@ -203,26 +229,28 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, **kwargs):
                    
     # assumes raw array are passed, computing using Durran's method
         
-    uh = np.fft.fftn(u)
+    uh = np.fft.fftn(u, norm='ortho')
 
     if type(varray) == type(None):
 
-        fourier_amplitudes = 0.5*(uh * np.conj(uh)).real/ (nx*ny)
+        fourier_amplitudes = 0.5*(uh * np.conj(uh)).real
 
     else:
         
-        vh = np.fft.fftn(v)
-        fourier_amplitudes = 0.5*(uh * np.conj(uh) + vh * np.conj(vh)).real/ (nx*ny)
-        
+        vh = np.fft.fftn(v, norm='ortho')
+        fourier_amplitudes = 0.5*(uh * np.conj(uh) + vh * np.conj(vh)).real
+            
     kfreq   = np.fft.fftfreq(nx) * nx
     kfreq2D = np.meshgrid(kfreq, kfreq)
+    
     knrm    = np.sqrt(kfreq2D[0]**2 + kfreq2D[1]**2)
     knrm    = knrm.flatten()
     
     fourier_amplitudes = fourier_amplitudes.flatten()
-
+    
     kbins = np.arange(0.5, nx//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
+    
     PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
     
     PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
