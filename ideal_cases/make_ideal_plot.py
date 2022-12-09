@@ -125,7 +125,7 @@ pblthe = 343.0
 #                   T_sfc=300.0, thetae_pbl=335.0, pbl_lapse=0.009, crit_lapse=0.0095, 
 #                   pbl_depth=None, lr=0.0001):
 
-#for i, CAPE in enumerate(CAPEs):
+for i, CAPE in enumerate(CAPEs):
   fname_plot = 'poly_sounding_C%d'%(CAPE)
   fname_out = 'poly_input_sounding_C%d'%(CAPE)
   profile_mw = mccaul_weisman(hgt,CAPE,m,zcape,ztrop,thetae_pbl=pblthe,RH_min=0.25,pbl_lapse = 0.008)

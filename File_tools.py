@@ -592,11 +592,11 @@ def write_Z_profile(data, model='WRF', tindex=0, iloc=0, jloc=0,  data_keys = ['
 
 def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, precip=None, condensate=None):
     
-    if model_type == 'fv3_raw':
+    if model_type == 'fv3_solo':
         
         if filename != None:
             print("Reading:  %s " % os.path.join(run_dir,filename))
-            ds = xr.open_dataset(os.path.join(run_dir,filename))
+            ds = xr.open_dataset(os.path.join(run_dir,filename),decode_times=False)
         else:
             ds = xr.open_dataset(os.path.join(run_dir, "*.nc"), decode_times=False)
         
@@ -605,16 +605,17 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
 
         w      = ds.dzdt.values[:,::-1,:,:]
 
-        pres   = ds.pres.values[:,::-1,:,:]
-        pfull  = ds.pfull.values * 100.
-        pbase  = np.broadcast_to(pfull[np.newaxis, :, np.newaxis, np.newaxis], pres.shape)[:,::-1,:,:]
-        ppres  = pres - pbase
+        pbase  = ds.pfull.values[::-1]*100.
+        pres   = ds.nhpres.values[:,::-1,:,:]
+        ppres  = ds.nhpres_pert.values[:,::-1,:,:]
         pii    = (pres/100000.)**0.286
 
         tbase  = ds.tmp.values[0,::-1,-1,-1]
         tbase  = np.broadcast_to(tbase[np.newaxis, :, np.newaxis, np.newaxis], pii.shape) / pii
         theta  = ds.tmp.values[:,::-1,:,:] / pii
         thetap = theta - tbase
+        qc     = ds.clwmr[:,::-1,:,:] 
+        qr     = ds.rwmr[:,::-1,:,:] 
         
         if precip:
             acc_precip = 3.0*ds.tprcp.values  # makes this similar to WRF, every 15 min.
@@ -623,10 +624,14 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         
         ds.close()
 
-        dsout = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 'theta': theta, 'thetap':thetap, 'ppres': ppres}
-        
+        dsout = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 
+                 'qr': qr, 'qc': qc, 'theta': theta, 'thetap':thetap, 'ppres': ppres}
+               
         if precip:
            dsout['acc_precip'] = acc_precip
+        
+        if condensate:
+            dsout['cond'] = (qc + qr) * den
         
         if printout:
             write_Z_profile(dsout, model=model_type.upper())
@@ -664,15 +669,23 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         den    =  pres / (287.04*(theta)*pii)
         z3d    = ds.PHB.values/9.806
         z3d    = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
+        qc     = ds.QCLOUD
+        qr     = ds.QRAIN
         
         ds.close()
 
-        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 'theta': theta, 'thetap':thetap, 'ppres': ppres}        
+        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 
+               'qr': qr, 'qc': qc, 'theta': theta, 'thetap':thetap, 'ppres': ppres}        
         
+        if condensate:
+            out['cond'] = (qc + qr) * den
+
         if printout:
             write_Z_profile(out, model=model_type.upper())
             
         return out
+
+##################################    
     
     if model_type == 'fv3':
         
@@ -699,8 +712,13 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         
         ds.close()
 
-        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 'theta': theta, 'thetap':thetap, 'ppres': ppres}
+        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 
+               'theta': theta, 'thetap':thetap, 'ppres': ppres}
         
+        if condensate:
+            out['cond'] = 0.0*den
+            print("condensate not implemented in full fv3 code, only solo")
+
         if printout:
             write_Z_profile(out, model=model_type.upper())
             
@@ -718,6 +736,8 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         ds = open_mfdataset_list(run_dir,  "cm1out_0000*.nc")
 
         w      = ds.winterp.values
+        qr     = ds.qr.values
+        qc     = ds.qc.values
         tbase  = ds.th0.values
         thetap = ds.thpert.values
         theta  = thetap + tbase
@@ -729,8 +749,12 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         z      = ds.zh.values * 1000. # heights are in km
         z3d    = np.broadcast_to(z[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
         
-        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 'theta': theta, 'thetap':thetap, 'ppres': ppres}
+        out = {'w': w, 'pbase': pbase, 'tbase': tbase, 'den': den, 'pii': pii, 'z3d': z3d, 'pres': pres, 
+               'qr': qr, 'qc': qc, 'theta': theta, 'thetap':thetap, 'ppres': ppres}
         
+        if condensate:
+            out['cond'] = (qc + qr) * den
+ 
         if printout:
             write_Z_profile(out, model=model_type.upper())
             
