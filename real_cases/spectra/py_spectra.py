@@ -228,7 +228,10 @@ def get_spectra2D_JG(fld, varray = None, sep=_sep1, dx = 3000., **kwargs):
     
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
     
-    PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins) 
+    if 'mean_power' in kwargs:
+        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
+    else:
+        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "sum", bins = kbins)
        
     wavenumber = 2*(kvals-1)/nx
         
@@ -301,8 +304,12 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
     
     kbins = np.arange(0.5, nx//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
-    PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "sum", bins = kbins)
-    
+
+    if 'mean_power' in kwargs:
+        PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "mean", bins = kbins)
+    else:
+        PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "sum", bins = kbins)
+
     waven = 2.*kvals / nx
             
     return kvals, PSbins, waven
@@ -348,7 +355,7 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
         check_var = kwargs['check_var']
     else:
         check_var = False
-    
+            
     if detrend:
         u = remove_trend(square_grid(fld, print_info), print_info)
     else:
@@ -399,7 +406,10 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
     kbins = np.arange(0.5, nx//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
     
-    PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "sum", bins = kbins)
+    if 'mean_power' in kwargs:
+        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
+    else:
+        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "sum", bins = kbins)
     
     wavenumber = 2*(kvals-1)/nx
         
@@ -479,14 +489,21 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
     else:
         detrend = False
         
-       
+# -------------
+
     print("%s" % _header)
     print("plot_spectra: Computing power spectrum using function: %s" % (func.__name__))
+    
+    if 'mean_power' in kwargs:
+        print("plot_spectra: Requesting mean-power, not summed-power to be plotted")
+        
     if type(varray) == type(None):
         print("plot_spectra: Spectrum from a single variable")
     else:
         print("plot_spectra: Spectrum computed for KE")
     print("plot_spectra: DETREND = %s\n" % (detrend))
+    
+# -------------
         
     # This next set of code does most of the work
         
