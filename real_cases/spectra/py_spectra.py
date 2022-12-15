@@ -213,7 +213,7 @@ def get_spectra2D_JG(fld, varray = None, sep=_sep1, dx = 3000., **kwargs):
     #
     
     if check_var:
-        check_variance(ke, fourier_amplitudes, dx=dx, sep=sep1)
+        check_variance(ke, fourier_amplitudes, dx=dx, sep=_sep1)
         
 
     kfreq   = np.fft.fftshift(np.fft.fftfreq(nx) * nx)
