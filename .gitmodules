@@ -1,0 +1,3 @@
+[submodule "naturalHDD"]
+	path = naturalHDD
+	url = https://github.com/bhatiaharsh/naturalHHD.git
