@@ -472,8 +472,8 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, sep = _sep1, **k
 #-------------------------------------------------------------------------------------
 # Plot spectral
 
-def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, PScolor='k', 
-                 PSline='-', ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
+def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, linecolor='k', 
+                 linestyle='-', linewidth=1.5, ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
     from spectra.py_spectra import get_spectra2D_RAD
@@ -533,10 +533,10 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         axes = ax
         
     if loglog:
-        axes[0].loglog(waven, Abins, color=PScolor, linestyle=PSline)
+        axes[0].loglog(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth)
         axes[0].set_xlim(2/waven.shape[0], 1.0)
 
-        axes[0].annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        axes[0].annotate("%s\n\nLog Power Scale" % legend, xy=(0.10, 0.15), xycoords='axes fraction', color='k',fontsize=18)
         axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(update_ticks))
            
         ylim = axes[0].get_ylim()
@@ -559,7 +559,6 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
             lindborg_II= (0.0001*ylim[1]*np.power(wavenumber, -5./3.))
 
             axes[0].loglog(wavenumber, lindborg_II , color='red',linestyle='-.',label='k$^{-5/3}$')
-
 
     else:
         axes[0].plot(waven, Abins, color=PScolor, linestyle=PSline)
