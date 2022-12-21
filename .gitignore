@@ -3,6 +3,7 @@
 **/*cpython-*
 *.png
 *.pdf
+*.log
 **/*.ipynb_checkpoints/
 input_sounding*
 */*.so
