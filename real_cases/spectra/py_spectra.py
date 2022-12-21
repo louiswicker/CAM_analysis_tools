@@ -1,24 +1,16 @@
 import os, sys, argparse, cmath
 import pylab as pl
 import numpy as np
-from scipy.fft import dct, fftn
+from scipy.fft import dct
 from matplotlib import colors, ticker
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from scipy import integrate
 
 _header = '-' * 100
 _sep1   = ' ' * 10
 _sep2   = ' ' * 20
 
 _dct_type = 2
-
-#-------------------------------------------------------------------------------------
-def update_ticks(x, pos):
-    if x != 0.0:
-        return "%2.1f" % (2.0/x)
-    else:
-        return r'$\infty$'
     
 #-------------------------------------------------------------------------------------
 def check_variance(array, spectra, dx=1.0, sep=_sep1):
@@ -48,7 +40,6 @@ def check_variance(array, spectra, dx=1.0, sep=_sep1):
     print("%s%sInput array variance         DFT Variance" % (sep, sep)  )
     print("%s%s-----------------------------------------" % (sep, sep))
     print("%s%s%15.10g            %15.10g\n" % (sep, sep, Raw_var, DFT_var) )
-
     
 #-------------------------------------------------------------------------------------
 def square_grid(fld, print_info):
@@ -83,7 +74,6 @@ def square_grid(fld, print_info):
         print("Square Grid: New even nx: %d  even ny: %d\n" %(mx,my))
 
     return tmp[0:my,0:mx].copy()
-
 #-------------------------------------------------------------------------------------
 
 def remove_trend(fld, print_info):
@@ -131,111 +121,6 @@ def remove_trend(fld, print_info):
     else:
         print("Remove_trend:  Input array has invalid shape of:  %d, stopping code" % fld.shape)
         sys.exit(1)
-        
-#-------------------------------------------------------------------------------------
-# 2D Spectra
-
-def get_spectra2D_JG(fld, varray = None, sep=_sep1, dx = 3000., **kwargs):
-    """
-    Returns 1D power spectra from a 2D field where 2D spectrum is averaged into radial bins.
-    There are several caveats.  First, the shape of the fld array must be square.  If it is not square, 
-    then it is made square by using the smallest dimension - one way or another the 2D spectrum can only 
-    be represented by the dimensions along the smallest dimension (meaning the longer wavelengths
-    are truncated).  The square is centered on [ny/2, nx/2] and has dimensions of (MIN(nx,ny))**2
-    
-    Second, the number of points must be an even number - which means dropping a single point at
-    most, which we do at the end of the array.
-    
-    Update 08/18/22:  Decided to use the Durran paper method and compute the ampltitudes precisely
-                      as they do - the amplitudes of spectrum are computed from the complex conjugates.
-                      Also added in the ability, now that the raw arrays need to be passed, to do
-                      2D KE by adding in a "varray" keyword argument.
-    
-    Input:  2D floating pont array
-    
-    Returns:  kvals:  mean wavenumber in each bin
-              PSbins: power spectra which has been binned into kbins
-              waven:  wavenumber (0 - 1) in non-dimensional space.
-    """
-    
-    # import cython code
-    
-    from spectra.spectra import spectra2D
-    from spectra.spectra import spectra1D_meanplane as spectra1D
-    
-    if 'print_info' in kwargs:
-        print_info = kwargs['print_info']
-    else:
-        print_info = False
-        
-    if 'detrend' in kwargs:
-        detrend = kwargs['detrend']
-    else:
-        detrend = False
-        
-    if 'check_var' in kwargs:
-        check_var = kwargs['check_var']
-    else:
-        check_var = True
-        
-    # print("%sget_spectra2D_RAD: computing spectra" % sep)  
-    
-    if detrend:
-        u = remove_trend(square_grid(fld, print_info), print_info)
-    else:
-        u = square_grid(fld, print_info)
-        
-    if type(varray) != type(None):
-        if detrend:
-            v = remove_trend(square_grid(varray, print_info), print_info)
-        else:
-            v = square_grid(varray, print_info)
-
-    ny, nx = u.shape
-    
-    if type(varray) == type(None):
-        
-        ke = 0.5*(u**2)
-           
-    else:
-        
-        ke =  0.5*(u**2 + v**2)
-        
-    fourier_amplitudes = np.squeeze(spectra2D(ke[None,None,:,:], dx))
-    
-    # 
-
-    fourier_amplitudes = np.fft.fftshift(fourier_amplitudes)
-    
-    #---------------------------------------------------------------
-    #
-    # Can check to make sure that the variance matches
-    #
-    
-    if check_var:
-        check_variance(ke, fourier_amplitudes, dx=dx, sep=_sep1)
-        
-
-    kfreq   = np.fft.fftshift(np.fft.fftfreq(nx) * nx)
-    kfreq2D = np.meshgrid(kfreq, kfreq)
-    
-    knrm    = np.sqrt(kfreq2D[0]**2 + kfreq2D[1]**2)
-    knrm    = knrm.flatten()
-    
-    fourier_amplitudes = fourier_amplitudes.flatten()
-    
-    kbins = np.arange(0.5, nx//2+1, 1.)
-    
-    kvals = 0.5 * (kbins[1:] + kbins[:-1])
-    
-    if 'mean_power' in kwargs:
-        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
-    else:
-        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "sum", bins = kbins)
-       
-    wavenumber = 2*(kvals-1)/nx
-        
-    return kvals, PSbins, wavenumber
 
 #-------------------------------------------------------------------------------------
 def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
@@ -304,12 +189,10 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
     
     kbins = np.arange(0.5, nx//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
-
-    if 'mean_power' in kwargs:
-        PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "mean", bins = kbins)
-    else:
-        PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "sum", bins = kbins)
-
+    PSbins, _, _ = stats.binned_statistic(knrm, variance, statistic = "mean", bins = kbins)
+    
+    PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
+    
     waven = 2.*kvals / nx
             
     return kvals, PSbins, waven
@@ -317,7 +200,7 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
 #-------------------------------------------------------------------------------------
 # 2D Spectra
 
-def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
+def get_spectra2D_RAD(fld, varray = None, sep=_sep1, **kwargs):
     """
     Returns 1D power spectra from a 2D field where 2D spectrum is averaged into radial bins.
     There are several caveats.  First, the shape of the fld array must be square.  If it is not square, 
@@ -351,11 +234,8 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
     else:
         detrend = False
         
-    if 'check_var' in kwargs:
-        check_var = kwargs['check_var']
-    else:
-        check_var = False
-            
+    # print("%sget_spectra2D_RAD: computing spectra" % sep)  
+    
     if detrend:
         u = remove_trend(square_grid(fld, print_info), print_info)
     else:
@@ -370,32 +250,19 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
             v = square_grid(varray, print_info)
                    
     # assumes raw array are passed, computing using Durran's method
+        
+    uh = np.fft.fftn(u, norm='ortho')
 
     if type(varray) == type(None):
-        
-        ke = 0.5*(u**2)
+
+        fourier_amplitudes = 0.5*(uh * np.conj(uh)).real
 
     else:
         
-        ke = 0.5*(u**2 + v**2)
-        
-    ke += -ke.mean()
-        
-    ke_trans = (dx*dx) * np.fft.fft2(ke)
-    
-    fourier_amplitudes = np.abs(ke_trans)**2 / (nx*dx)**2 / (2.0*np.pi)**2
-    
-    fourier_amplitudes = np.fft.fftshift(fourier_amplitudes)
-    
-    #---------------------------------------------------------------
-    #
-    # Can check to make sure that the variance matches
-    #
-    
-    if check_var:
-        check_variance(ke, fourier_amplitudes, dx=dx, sep=sep)
-        
-    kfreq   = np.fft.fftshift(np.fft.fftfreq(nx) * nx)
+        vh = np.fft.fftn(v, norm='ortho')
+        fourier_amplitudes = 0.5*(uh * np.conj(uh) + vh * np.conj(vh)).real
+            
+    kfreq   = np.fft.fftfreq(nx) * nx
     kfreq2D = np.meshgrid(kfreq, kfreq)
     
     knrm    = np.sqrt(kfreq2D[0]**2 + kfreq2D[1]**2)
@@ -406,11 +273,9 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, dx=3000., **kwargs):
     kbins = np.arange(0.5, nx//2+1, 1.)
     kvals = 0.5 * (kbins[1:] + kbins[:-1])
     
-    if 'mean_power' in kwargs:
-        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
-    else:
-        PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "sum", bins = kbins)
+    PSbins, _, _ = stats.binned_statistic(knrm, fourier_amplitudes, statistic = "mean", bins = kbins)
     
+    PSbins *= np.pi * (kbins[1:]**2 - kbins[:-1]**2)
     wavenumber = 2*(kvals-1)/nx
         
     return kvals, PSbins, wavenumber
@@ -471,13 +336,12 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, sep = _sep1, **k
         return kvals, Abins.mean(axis=0), waven
 #-------------------------------------------------------------------------------------
 # Plot spectral
-
-def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, linecolor='k', 
-                 linestyle='-', linewidth=1.5, ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
+    
+def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, linecolor='k', label=None, linestyle='-', linewidth=1.5, 
+                 ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
     from spectra.py_spectra import get_spectra2D_RAD
-    from spectra.spectra import spectra2D as get_spectra2D_J
     
     if 'print_info' in kwargs:
         print_info = kwargs['print_info']
@@ -504,7 +368,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
     print("plot_spectra: DETREND = %s\n" % (detrend))
     
 # -------------
-        
+
     # This next set of code does most of the work
         
     if len(fld.shape) < 3:  
@@ -516,68 +380,65 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         kvals, Abins, waven = get_spectraND(fld, varray = varray, func = func, sep=_sep2, **kwargs)
 
     if print_info:
-        print('kvals: ',kvals.shape, kvals)
-        print('PS: ', Abins.shape, Abins)
+        print('kvals:      ',kvals.shape, kvals)
+        print('PS:         ',Abins.shape, Abins)
         print('wavenumber: ',waven.shape, waven)
 
-    if legend == None:
-        legend = 'Field'
-    
     if ax == None:
-        fig, axes = plt.subplots(1, 2, constrained_layout=True,figsize=(20,8))
-        
-        axes[1].imshow(fld[::-1])
-        axes[1].set_title(ptitle, fontsize=18)
+        fig, axes = plt.subplots(1, 1, constrained_layout=True,figsize=(10,8))
         
     else:
         axes = ax
         
     if loglog:
-        axes[0].loglog(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth)
-        axes[0].set_xlim(2/waven.shape[0], 1.0)
+        
+        axes.loglog(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth, label=label)
+        
+        axes.set_xlim(2/waven.shape[0], 1.0)
 
-        axes[0].annotate("%s\n\nLog Power Scale" % legend, xy=(0.10, 0.15), xycoords='axes fraction', color='k',fontsize=18)
-        axes[0].xaxis.set_major_formatter(mticker.FuncFormatter(update_ticks))
+        #axes.annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        
+        axes.xaxis.set_major_formatter(lambda x, pos: str(int(2.0/x)))
            
-        ylim = axes[0].get_ylim()
+        ylim = axes.get_ylim()
         
         if 'ylabels' in kwargs:
-            ylabel = kwargs.get('ylabel')
+            ylabel = kwargs.get('ylabels')
         else:
-            ylabel = 10
+            ylabel = ylim[0]
         
         xoffset = [0.01, 0.005, 0.0035, 0.0025, 0.001]
         
         for n, w in enumerate([4.0, 8.0, 12.0, 16.0]):
-            axes[0].axvline(x = (2.0/w), color = 'grey', label = 'axvline - full height')  
-            axes[0].annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], ylabel), xycoords='data', color='k',fontsize=12)
-                        
+            axes.axvline(x = (2.0/w), color = 'grey')  
+            axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], ylabel), xycoords='data', color='k',fontsize=12)
+            
         if LinsborgSlope:
-            freq = np.arange(1,fld.shape[-1]//2+1)/float(fld.shape[-1])
-            wavelength = 1.0/freq
-            wavenumber = [2.0/32.,2.0/2.0]
-            lindborg_II= (0.0001*ylim[1]*np.power(wavenumber, -5./3.))
-
-            axes[0].loglog(wavenumber, lindborg_II , color='red',linestyle='-.',label='k$^{-5/3}$')
+            xpt = [2.0/32.,2.0/2.0]
+            dlnx = np.log(xpt[1]) - np.log(xpt[0])
+            y1   = ylim[1]/(1000.)
+            y0   = np.exp(np.log(y1) + 5./3. * dlnx)
+            ypt  = [y0,y1]
+            axes.loglog(xpt, ypt, color='red',linestyle='-.',label='k$^{-5/3}$')
 
     else:
-        axes[0].plot(waven, Abins, color=PScolor, linestyle=PSline)
-        axes[0].set_xlim(0.0, 1.0)
+        axes.plot(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth, label=label)
+        axes.set_xlim(0.0, 1.0)
         
-        axes[0].set_xticks(axes[0].get_xticks()) # see https://github.com/matplotlib/matplotlib/issues/18848
-        axes[0].set_xticklabels([r'$\infty$', r"10", r"5", r"3.3", r"2.5", r"2.0"],fontsize=12, weight='bold')
+        axes.set_xticks(axes[0].get_xticks()) # see https://github.com/matplotlib/matplotlib/issues/18848
+        axes.set_xticklabels([r'$\infty$', r"10", r"5", r"3.3", r"2.5", r"2.0"],fontsize=12, weight='bold')
         
         for w in [4.0, 6.0, 8.0, 10.0, 12.0, 16.0]:
-            axes[0].annotate(r"%d" % int(w), xy = ((2.0/w)-0.01, -0.035), xycoords='axes fraction', color='k',fontsize=12)
-            axes[0].axvline(x = (2.0/w)-0.0075, color = 'grey', label = 'axvline - full height')
+            axes.annotate(r"%d" % int(w), xy = (2.0/w-0.01, -0.035), xycoords='axes fraction', color='k',fontsize=12)
+            axes.axvline(x = 2.0/w-0.0075, color = 'grey')
             
-        axes[0].annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        #axes.annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
 
-    axes[0].set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=12)
-    axes[0].set_ylabel(r"%s Spectral Density (m$^3$ s$^{-2}$)" % ptitle, fontsize=16)
+    axes.set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=12)
+    axes.set_ylabel(r"%s Spectral Density (m$^3$ s$^{-2}$)" % ptitle, fontsize=16)
     
     if 'ylim' in kwargs:
-        axes[0].set_ylim(kwargs.get('ylim'))
+        axes.set_ylim(kwargs.get('ylim'))
 
     plt.title(ptitle, fontsize=18)
     
