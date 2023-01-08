@@ -792,17 +792,17 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         return dsout
     
 #--------------------------------------------------------------------------------------------------
-def generate_ideal_profiles(run_dir, model_type='wrf', w_thresh = 5.0, cref_thresh = 45., min_pix=1, percentiles=None, compDBZ=False):
+def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh = 5.0, cref_thresh = 45., min_pix=1, percentiles=None, compDBZ=False):
     
     print("processing model run:  %s \n" % run_dir)
     
-    if model_type == 'fv3_raw':
+    if model_type == 'fv3_solo':
 
-        file = os.path.join(run_dir,'atmos_hifreq.nc')
-        
-        #ds = xr.open_dataset(os.path.join(run_dir, "atm.nc"))
-
-        ds = xr.open_dataset(file, decode_times=False)
+        if filename != None:
+            print("Reading:  %s " % os.path.join(run_dir,filename))
+            ds = xr.open_dataset(os.path.join(run_dir,filename),decode_times=False)
+        else:
+            ds = xr.open_dataset(os.path.join(run_dir, "atmos_hifreq.nc"), decode_times=False)
 
         z    = ds.delz.values[:,::-1,:,:]
         z    = np.cumsum(z,axis=1)
@@ -820,78 +820,93 @@ def generate_ideal_profiles(run_dir, model_type='wrf', w_thresh = 5.0, cref_thre
     
     if model_type == 'wrf':
         
-        def open_mfdataset_list(data_dir, pattern):
+        def open_mfdataset_list(data_dir, pattern, skip=0):
             """
             Use xarray.open_mfdataset to read multiple netcdf files from a list.
             """
             filelist = os.path.join(data_dir,pattern)
+            
+            if skip > 0:
+                filelist = filelist[0:-1:skip]
+                
             return xr.open_mfdataset(filelist, combine='nested', concat_dim=['Time'], parallel=True)
     
-        if compDBZ:
-            
-            print("\n  Checking to see if REFL_10CM exists\n")
-            
-        # Need to run through all the datasets and create REFL_10CM, and write back out...
-        
-            filenames = sorted(glob.glob(os.path.join(run_dir,  "wrfout*")))
-        
-            for n in np.arange(len(filenames)):
-            
-                ds     = xr.open_dataset(filenames[n])
+        if filename == None:
+            print("Reading:  %s " % os.path.join(run_dir,"wrfout_d01_0001-01-01_00:00:00"))
+            filename = os.path.join(run_dir,"wrfout_d01_0001-01-01_00:00:00")
+            ds = xr.open_dataset(filename,decode_times=False)
+        else:
+            ds   = open_mfdataset_list(run_dir,  "wrfout*")
+              
+        if not os.path.exists(os.path.join(run_dir, 'wrf_dbz.npy')):
                 
-                if( np.all(ds.REFL_10CM.values == 0) ):
-                    
-                    print('\n WRF output file is missing REFL_10CM --> recomputing')
+            print('\n WRF output is missing REFL_10CM --> computing')
+
+            pbase  = ds.PB.values
+            pres   = ds.P.values + ds.PB.values
+
+            theta  = ds.T.values + 300.
+            pii    = (pres/100000.)**0.286
+            temp   = theta*pii
+
+            qv     = ds.QVAPOR.values
+            qc     = ds.QCLOUD.values
+            qr     = ds.QRAIN.values
+            qi     = np.zeros_like(qv)
+            qs     = np.zeros_like(qv)
+            qg     = np.zeros_like(qv)
+            dbz    = np.zeros_like(qv)
+
+            for n in np.arange(dbz.shape[0]):
+
+                dbz[n] = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
+                print(n, dbz.max(), dbz.min())
+
+#             ds_new = xr.DataArray( data=dbz, name = 'REFL_10CM', \
+#                                    dims   = ['Time','bottom_top','south_north','west_east'], \
+#                                    coords = dict(Time=(['Time'], ds['Times'].values),
+#                                                  bottom_top  = (['ZNU'], ds['ZNU'].values),
+#                                                  south_north = (['XLAT'], ds['XLAT'].values),
+#                                                  west_east   = (['XLONG'], ds['XLONG'].values) ) )
+
+#             ds_new.to_netcdf(os.path.join(run_dir, 'wrf_dbz.nc'), mode='w')
+
+            with open(os.path.join(run_dir, 'wrf_dbz.npy'), 'wb') as f:
+                np.save(f, dbz)
+            
+            print("\nWrote file out: %s" % os.path.join(run_dir, 'wrf_dbz.npy'))
+            
+            # plt.imshow(dbz[10,10])
+            # plt.show()
+
+        else:
+            
+            print("\nReading external DBZ file: %s" % os.path.join(run_dir, 'wrf_dbz.npy'))
+
+            with open(os.path.join(run_dir, 'wrf_dbz.npy'), 'rb') as f:
+                dbz = np.load(f)
                 
-                    pbase  = ds.PB.values
-                    pres   = ds.P.values + ds.PB.values
-
-                    tbase  = ds.T_BASE.values + 300.
-                    tbase  = np.broadcast_to(tbase[:, :, np.newaxis, np.newaxis], pres.shape)
-                    theta  = ds.T.values + 300.
-                    pii    = (pres/100000.)**0.286
-                    temp   = theta*pii
-                    qv     = ds.QVAPOR.values
-                    qc     = ds.QCLOUD.values
-                    qr     = ds.QRAIN.values
-                    qi     = np.zeros_like(qv)
-                    qs     = np.zeros_like(qv)
-                    qg     = np.zeros_like(qv)
-                    dbz    = np.zeros_like(qv)
-
-                    dbz = cmpref.calcrefl10cm(qv, qc, qr, qs, qg, temp, pres)
-
-                    print(n, dbz.max(), dbz.min())
-
-                    ds['REFL_10CM'][...] = dbz
-
-                    ds.close()
-
-                    ds.to_netcdf(filenames[n], mode='a')
-
-                    print('\n Wrote dataset:  %s' % filenames[n])
-
-                    del(ds)
-                            
-        ds     = open_mfdataset_list(run_dir,  "wrfout*")
-        
+            print("\nShape of DBZ array: " ,dbz.shape)
+            
+            # plt.imshow(dbz[10,10])
+            # plt.show()
+                
+            # for n in np.arange(dbz.shape[0]):
+            #     print(n, dbz.max(), dbz.min())
+                
         w      = ds.W.values
         w      = 0.5*(w[:,1:,:,:] + w[:,:-1,:,:])
         pbase  = ds.PB.values
         pres   = ds.P.values + ds.PB.values
 
-
-        tbase  = ds.T_BASE.values + 300.
-        tbase  = np.broadcast_to(tbase[:, :, np.newaxis, np.newaxis], w.shape)
         theta  = ds.T.values + 300.
         pii    = (pres/100000.)**0.286
         temp   = theta*pii
 
-        dbz    = ds.REFL_10CM.values
-
-            
         z    = ds.PHB.values/9.806
         z    = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
+        
+        # plt.imshow(w[10,10])
 
         profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles)
         
@@ -908,8 +923,8 @@ def generate_ideal_profiles(run_dir, model_type='wrf', w_thresh = 5.0, cref_thre
             filelist = os.path.join(data_dir,pattern)
             return xr.open_mfdataset(filelist, combine='nested', concat_dim=['time'], parallel=True)
     
-        ds   = open_mfdataset_list(run_dir, "*.nc")
-
+        ds   = open_mfdataset_list(run_dir,   "*.nc")
+        
         w    = ds.W.values
         w    = 0.5*(w[:,1:,:,:] + w[:,:-1,:,:])
         dbz  = ds.REFL_10CM.values
@@ -932,55 +947,52 @@ def generate_ideal_profiles(run_dir, model_type='wrf', w_thresh = 5.0, cref_thre
             filelist = os.path.join(data_dir,pattern)
             return xr.open_mfdataset(filelist, parallel=True)
     
-        ds = open_mfdataset_list(run_dir,  "cm1out_0000*.nc")
+        if filename == None:
+            print("Reading:  %s " % os.path.join(run_dir,"cm1out.nc"))
+            ds = xr.open_dataset(os.path.join(run_dir,"cm1out.nc"),decode_times=False)
+        else:
+            ds = open_mfdataset_list(run_dir,  "cm1out_*.nc")
         
         w    = ds.winterp.values
         z    = ds.zh.values * 1000. # heights are in km
         z3d  = np.broadcast_to(z[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
         pres = ds.prs.values
 
-        if compDBZ:
-            
-            if os.path.exists(os.path.join(run_dir, 'cm1dbz.nc')):
-                
-                print("\nReading existing DBZ file in directory")
-                      
-                ds2 = xr.load_dataset(os.path.join(run_dir, 'cm1dbz.nc'))
-                dbz = ds2['REFL_10CM'].values
-                            
-            else:
-                
-                print("\n  ...No existing DBZ file found, computing a new 4D DBZ\n")
-            
-                theta = ds.th.values
-                pii   = (pres/100000.)**0.286
-                temp  = theta*pii
-                qv    = ds.qv.values
-                qc    = ds.qc.values
-                qr    = ds.qr.values
-                qi    = np.zeros_like(qv)
-                qs    = np.zeros_like(qv)
-                qg    = np.zeros_like(qv)
-                dbz   = np.zeros_like(qv)
+        if os.path.exists(os.path.join(run_dir, 'cm1_dbz.nc')):
 
-                for n in np.arange(temp.shape[0]):
+            print("\nReading existing DBZ file in directory")
 
-                    dbz[n]  = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
-                    print(n, dbz[n].max(), dbz[n].min())
-            
-                ds_new = xr.DataArray( data=dbz, name = 'REFL_10CM', \
-                                       dims   = ['time','zh','yh','xh'], \
-                                       coords = dict(time=(['time'], ds['time'].values),
-                                                     zh = (['zh'], ds['zh'].values),
-                                                     yh = (["yh"], ds['yh'].values),
-                                                     xh = (["xh"], ds['xh'].values) ) )
-                                      
-                ds_new.to_netcdf(os.path.join(run_dir, 'cm1dbz.nc'), mode='w')
-                
+            ds2 = xr.load_dataset(os.path.join(run_dir, 'cm1_dbz.nc'))
+            dbz = ds2['REFL_10CM'].values
+
         else:
-            
-            dbz = ds.dbz.values
 
+            print("\n  ...No existing DBZ file found, computing a new 4D DBZ\n")
+
+            theta = ds.th.values
+            pii   = (pres/100000.)**0.286
+            temp  = theta*pii
+            qv    = ds.qv.values
+            qc    = ds.qc.values
+            qr    = ds.qr.values
+            qi    = np.zeros_like(qv)
+            qs    = np.zeros_like(qv)
+            qg    = np.zeros_like(qv)
+            dbz   = np.zeros_like(qv)
+
+            for n in np.arange(dbz.shape[0]):
+
+                dbz[n]  = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
+                print(n, dbz[n].max(), dbz[n].min())
+
+            ds_new = xr.DataArray( data=dbz, name = 'REFL_10CM', \
+                                   dims   = ['time','zh','yh','xh'], \
+                                   coords = dict(time=(['time'], ds['time'].values),
+                                                 zh = (['zh'], ds['zh'].values),
+                                                 yh = (["yh"], ds['yh'].values),
+                                                 xh = (["xh"], ds['xh'].values) ) )
+
+            ds_new.to_netcdf(os.path.join(run_dir, 'cm1_dbz.nc'), mode='w')
 
         profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles)
         
@@ -1022,6 +1034,7 @@ def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min
     
     mask_cref   = np.where(DBZ.max(axis=1) > cref_thresh, True, False)
     mask_w_3d   = np.where(PRES < 70000.0, W, np.nan)
+    
     mask_w_2d   = np.nanmax(mask_w_3d, axis=1)
     mask_w_cref = (mask_w_2d > w_thresh) & mask_cref
     f_mask      = mask_w_cref.astype(np.int8)
