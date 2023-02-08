@@ -14,6 +14,8 @@ import pickle
 
 from cmpref import cmpref_mod as cmpref
 
+from CAM_util import dbz_from_q
+
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -614,6 +616,7 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
             pres   = ds.nhpres.values[:,::-1,:,:]
             ppres  = ds.nhpres_pert.values[:,::-1,:,:]
             pii    = (pres/100000.)**0.286
+            temp   = ds.tmp.values[::-1]
 
             tbase  = ds.tmp.values[0,::-1,-1,-1]
             tbase  = np.broadcast_to(tbase[np.newaxis, :, np.newaxis, np.newaxis], pii.shape) / pii
@@ -634,8 +637,6 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
         
         else:
             
-            # z3d    = ds.delz.values[:,::-1,:,:]
-            # z3d    = - np.cumsum(z3d,axis=1)
             w      = ds.dzdt.values[:,::-1,:,:]
 
             try:
@@ -798,8 +799,13 @@ def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, 
             
         return dsout
     
-#--------------------------------------------------------------------------------------------------
-def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh = 5.0, cref_thresh = 45., min_pix=1, percentiles=None, compDBZ=False, **kwargs):
+#==========================================================================================================
+#
+# GENERATE IDEAL PROFILES
+#
+#==========================================================================================================
+def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh = 5.0, cref_thresh = 45., 
+                            min_pix=1, percentiles=None, compDBZ=False, **kwargs):
     
     print("processing model run:  %s \n" % run_dir)
     
@@ -811,16 +817,26 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
         else:
             ds = xr.open_dataset(os.path.join(run_dir, "atmos_hifreq.nc"), decode_times=False)
 
-        z    = ds.delz.values[:,::-1,:,:]
-        z    = np.cumsum(z,axis=1)
-
-        w    = ds.dzdt.values[:,::-1,:,:]
-        pres = ds.nhpres.values[:,::-1,:,:]
+        z       = ds.delz.values[:,::-1,:,:]
+        z3d     = np.cumsum(z,axis=1)
+        w       = ds.dzdt.values[:,::-1,:,:]
+        pres    = ds.nhpres.values[:,::-1,:,:]  
+        dbz     = ds.refl_10cm.values[:,::-1,:,:]
+        temp    = ds.tmp.values[:,::-1,:,:]
+        pii     = (pres/100000.)**0.286
+        theta   = temp / pii
+        qv      = ds.spfh.values[:,::-1,:,:]
+        qv      = qv / (1.0 + qv)
         
-        dbz  = ds.refl_10cm.values[:,::-1,:,:]
+        temp1d  = temp[0,:,-1,-1]
+        pert_t  = temp - np.broadcast_to(temp1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
+        theta1d = theta[0,:,-1,-1]
+        pert_th = theta - np.broadcast_to(theta1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
         
-        profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles, **kwargs)
-        
+        profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, percentiles=percentiles, 
+                                        extra_vars={'temp': temp, 'theta':theta, 'pert_t': pert_t, 'pert_th':pert_th, 'qv': qv},
+                                        **kwargs)
         ds.close()
 
         return profiles
@@ -855,6 +871,7 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
             theta  = ds.T.values + 300.
             pii    = (pres/100000.)**0.286
             temp   = theta*pii
+            den    = pres/(temp*Rgas)
 
             qv     = ds.QVAPOR.values
             qc     = ds.QCLOUD.values
@@ -867,7 +884,10 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
             for n in np.arange(dbz.shape[0]):
 
                 dbz[n] = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
-                print(n, dbz.max(), dbz.min())
+                dbznew  = dbz_from_q(den[n], qr[n])
+
+                print(n, dbz[n].max(), dbz[n].min())
+                print(n, dbznew.max(), dbznew.min())
 
 #             ds_new = xr.DataArray( data=dbz, name = 'REFL_10CM', \
 #                                    dims   = ['Time','bottom_top','south_north','west_east'], \
@@ -909,14 +929,20 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
         theta  = ds.T.values + 300.
         pii    = (pres/100000.)**0.286
         temp   = theta*pii
+        qv     = ds.QVAPOR.values
+        
+        temp1d  = temp[0,:,-1,-1]
+        pert_t  = temp - np.broadcast_to(temp1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
+        theta1d = theta[0,:,-1,-1]
+        pert_th = theta - np.broadcast_to(theta1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
 
         z    = ds.PHB.values/9.806
-        z    = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
+        z3d  = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
         
-        # plt.imshow(w[10,10])
-
-        profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles, **kwargs)
-        
+        profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, percentiles=percentiles, 
+                                        extra_vars={'temp': temp, 'theta':theta, 'pert_t': pert_t, 'pert_th':pert_th, 'qv': qv},
+                                        **kwargs)
         ds.close()
 
         return profiles
@@ -937,10 +963,11 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
         dbz  = ds.REFL_10CM.values
         pres = ds.P.values
         z    = ds.PHB.values/9.806
-        z    = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
+        z3d  = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
 
-        profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles, **kwargs)
-        
+        profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, percentiles=percentiles, 
+                                        extra_vars={'temp': temp, 'theta':theta}, **kwargs)
         ds.close()
 
         return profiles
@@ -960,10 +987,19 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
         else:
             ds = open_mfdataset_list(run_dir,  "cm1out_*.nc")
         
-        w    = ds.winterp.values
-        z    = ds.zh.values * 1000. # heights are in km
-        z3d  = np.broadcast_to(z[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
-        pres = ds.prs.values
+        w      = ds.winterp.values
+        z      = ds.zh.values * 1000. # cm1 heights are stored in km
+        z3d    = np.broadcast_to(z[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
+        pres   = ds.prs.values
+        theta  = ds.th.values
+        pii    = (pres/100000.)**0.286
+        temp   = theta*pii
+        
+        temp1d  = temp[0,:,-1,-1]
+        pert_t  = temp - np.broadcast_to(temp1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
+        theta1d = theta[0,:,-1,-1]
+        pert_th = theta - np.broadcast_to(theta1d[np.newaxis, :, np.newaxis, np.newaxis], w.shape)
+        qv      = ds.qv.values
 
         if os.path.exists(os.path.join(run_dir, 'cm1_dbz.nc')):
 
@@ -976,10 +1012,7 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
 
             print("\n  ...No existing DBZ file found, computing a new 4D DBZ\n")
 
-            theta = ds.th.values
-            pii   = (pres/100000.)**0.286
-            temp  = theta*pii
-            qv    = ds.qv.values
+            den   = pres/(temp*Rgas)
             qc    = ds.qc.values
             qr    = ds.qr.values
             qi    = np.zeros_like(qv)
@@ -990,7 +1023,10 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
             for n in np.arange(dbz.shape[0]):
 
                 dbz[n]  = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
+                dbznew  = dbz_from_q(den[n], qr[n])
+
                 print(n, dbz[n].max(), dbz[n].min())
+                print(n, dbznew.max(), dbznew.min())
 
             ds_new = xr.DataArray( data=dbz, name = 'REFL_10CM', \
                                    dims   = ['time','zh','yh','xh'], \
@@ -1001,14 +1037,18 @@ def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh =
 
             ds_new.to_netcdf(os.path.join(run_dir, 'cm1_dbz.nc'), mode='w')
 
-        profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles, **kwargs)
+        profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, percentiles=percentiles, 
+                                        extra_vars={'temp': temp, 'theta':theta, 'pert_t': pert_t, 'pert_th':pert_th, 'qv': qv},
+                                        **kwargs)
         
         ds.close()
 
         return profiles
 
 #-------------------------------------------------------------------------------
-def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min_pix=5, percentiles=None, zhgts = 250. + 250.*np.arange(80)):
+def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min_pix=5, percentiles=None, 
+                         zhgts = 250. + 250.*np.arange(100), extra_vars = None):
     
     from skimage.measure import label
     
@@ -1046,14 +1086,28 @@ def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min
     mask_w_cref = (mask_w_2d > w_thresh) & mask_cref
     f_mask      = mask_w_cref.astype(np.int8)
         
+    tindex   = [0]
+    
     wlist    = []
-    size     = []
+    slist    = []
+    
+    vars = {}
+    vars['dbz']  = DBZ
+    vars['pres'] = PRES
+    vars['w']    = W
+    
+    p_vars = {}
+    p_vars['dbz']  = []
+    p_vars['pres'] = []
+    p_vars['w']    = []
+    
+    if extra_vars != None:
+        for key in extra_vars:
+            vars[key]   = extra_vars[key]  # this should be an array same shape as W, PRES, DBZ
+            p_vars[key] = []
+    
     all_obj  = 0
     w_obj    = 0
-    
-    # define a grid to interpolation profiles to
-
-    
     
     for n in np.arange(W.shape[0]): # loop over number of time steps.            
         
@@ -1061,11 +1115,14 @@ def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min
         
         if (np.sum(f_mask[n]) == 0):
             
+            tindex.append(w_obj)
+                            
             continue
 
         else:
-        
-            label_array, num_obj = label(f_mask[n], background=0, connectivity=2, return_num = True) # returns a 2D array of labels for updrafts)
+            
+            # returns a 2D array of labels for updrafts)
+            label_array, num_obj = label(f_mask[n], background=0, connectivity=2, return_num = True) 
             
             all_obj += num_obj
 
@@ -1077,45 +1134,40 @@ def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min
                         jloc, iloc = np.where(label_array == l)    # extract out the locations of the updrafts 
                         w_obj += 1
                         if len(iloc) > 0 and len(jloc) > 0:
-                            wraw    = W[n,:,jloc,iloc]               # get w_raw profiles
-                            zraw    = Z[n,:,jloc,iloc]               # get z_raw profiles
-                                 
-                            profile = interp3dz_np(wraw.transpose(), zraw.transpose(), zhgts, nthreads = _nthreads)
-
-                            wlist.append([profile.mean(axis=(1,))],)
-                            size.append(wraw.shape[0])
+                           
+                            zraw    = Z[n,:,jloc,iloc]             # get z_raw profiles
                             
-    if( len(wlist) < 1 ):
+                            for key in p_vars:                     # loop through dictionary of variables.
+                                tmp = vars[key][n,:,jloc,iloc]
+                                profile = interp3dz_np(tmp.transpose(), zraw.transpose(), zhgts, nthreads = _nthreads)
+                                p_vars[key].append([profile.mean(axis=(1,))],)
+
+                                if key == 'w':
+                                    slist.append(tmp.shape[0])
+                            
+                            # returns a columns of variables interpolated to the grid associated with updraft
+                        
+                                
         
+        tindex.append(w_obj)            
+                                        
+    if( len(p_vars['w']) < 1 ):
+
         print("\n ---> Compute_Obj_Profiles found no objects...returning zero...\n")
-        return np.zeros((zhgts.shape[0],1))
-    
+        return np.zeros((zhgts.shape[0],1,1))
+
     else:
         
-        wprofiles = np.squeeze(np.asarray(wlist), axis=1).transpose()
-
         print("\n Number of selected updraft profiles:  %d \n Number of labeled objects:  %d\n" % (w_obj, all_obj))
-        
-        if percentiles:
+             
+        for key in p_vars:
+            p_vars[key] = np.squeeze(np.asarray(p_vars[key]), axis=1).transpose()
             
-            wprofiles = np.sort(wprofiles, axis=1)
-                       
-            wprofile_percentiles = [wprofiles]
-            
-            for n, p in enumerate(percentiles):
-                
-                print("Percentile value:  %f\n" % p)
-                
-                idx = max(int(wprofiles.shape[1]*p/100.) - 1, 0)
-                
-                wprofile_percentiles.append(wprofiles[:,idx:])
-            
-            return wprofile_percentiles, np.sort(np.asarray(size, dtype=np.float32))
-            
-        else:
-    
-            return np.sort(wprofiles, axis=1), np.sort(np.asarray(size,dtype=np.float32))
+        p_vars['tindex'] = tindex
+        p_vars['size']   = np.asarray(slist, dtype=np.float32)
 
+        return p_vars 
+        
 #-------------------------------------------------------------------------------
 
 def getobjdata(run_dir, model_type='wrf', filename=None):
@@ -1252,7 +1304,8 @@ def getobjdata(run_dir, model_type='wrf', filename=None):
         z    = ds.PHB.values/9.806
         z    = 0.5*(z[:,1:,:,:] + z[:,:-1,:,:])
 
-        profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, min_pix=min_pix, percentiles=percentiles)
+        profiles = compute_obj_profiles(w, dbz, pres, z, w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, percentiles=percentiles)
         
         ds.close()
 
@@ -1321,32 +1374,3 @@ def getobjdata(run_dir, model_type='wrf', filename=None):
     
     
     
-# Function to create a colortable that matches the NWS colortable
-def radar_colormap():
-    nws_reflectivity_colors = [
-    "#646464", # ND
-    "#ccffff", # -30
-    "#cc99cc", # -25
-    "#996699", # -20
-    "#663366", # -15
-    "#cccc99", # -10
-    "#999966", # -5
-    "#646464", # 0
-    "#04e9e7", # 5
-    "#019ff4", # 10
-    "#0300f4", # 15
-    "#02fd02", # 20
-    "#01c501", # 25
-    "#008e00", # 30
-    "#fdf802", # 35
-    "#e5bc00", # 40
-    "#fd9500", # 45
-    "#fd0000", # 50
-    "#d40000", # 55
-    "#bc0000", # 60
-    "#f800fd", # 65
-    "#9854c6", # 70
-    "#fdfdfd" # 75
-    ]
-
-    return mpl.colors.ListedColormap(nws_reflectivity_colors)
