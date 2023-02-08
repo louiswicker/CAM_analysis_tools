@@ -591,7 +591,12 @@ def write_Z_profile(data, model='WRF', tindex=0, iloc=0, jloc=0,  data_keys = ['
     table = columnar(row_data, headers, no_borders=True)
     print(table)
 
-#---------------------------------------------------------------------
+#==========================================================================================================
+#
+# READ MODEL FIELDS
+#
+#==========================================================================================================
+
 
 def read_model_fields(run_dir, model_type='wrf', printout=False, filename=None, precip_only=False):
  
