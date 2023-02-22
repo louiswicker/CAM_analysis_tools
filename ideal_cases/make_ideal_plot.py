@@ -84,7 +84,47 @@ def shear(gz, type=1, shear=12.5, depth=2500.):
         u = np.where(scale <= 1.0, shear*scale, shear)
         
         return u, np.zeros_like(gz)
+
+    if type == 2:  # 2D WK squall line or supercell shear...
+   
+        depth = 5000.
+        scale = gz / depth
+        ugnd  = shear / np.pi
+        angle = np.deg2rad(180.0 - (1.0 - scale))
+        u     = np.where(scale <= 1.0, ugnd*np.cos(angle), ugnd)
+        v     = np.where(scale <= 1.0, ugnd*np.sin(angle),  0.0)
+
+        return u, v
     
+    if type == 3:  # 2D Brooks PhD thesis shear
+   
+        depth = 3000.
+        scale = gz / depth
+        vmap  = 15.0  # 3 km v-wind
+
+        vmag  = np.where(scale <= 1.0, v3*scale, v3)
+
+        angle = np.deg2rad(270.0 - 180.0*scale)
+
+        u     = np.where(scale <= 1.0, vmag*np.cos(angle), 0.006*(gz-3000.) )
+        v     = np.where(scale <= 1.0, vmag*np.sin(angle), v3)
+
+        return np.where(u <= 40., u, 40.), v
+
+    if type == 4:  # 2D quarter circle shear
+   
+        depth = 3000.
+        scale = gz / depth
+        vmag  = 15.0  # 3 km v-wind
+
+        angle = np.deg2rad(180. - 90.0*scale)
+
+        u     = np.where(scale <= 1.0, vmag*np.cos(angle), 0.006*(gz-3000.) )
+        v     = np.where(scale <= 1.0, vmag*np.sin(angle), vmag)
+
+        return np.where(u <= 40., u, 40.), v
+
+#---------------------------------------------
 def zgrid(nz, height = 20000., stag=False): 
     dz = height / float(nz)
     if stag:
@@ -114,7 +154,7 @@ ztrop = 12.0E3
 
 
 CAPEs =(1000.,)
-CAPEs =(1000, 1500, 2000, 2500, 3000, 3500)
+CAPEs =(2000, 3500)
 qvs = (11., 12., 13., 14., 15., 16.)
 m = 1.8
 us1 = 18.
@@ -126,8 +166,10 @@ ROCP   = 0.28571426 # from sharppy
 #                   pbl_depth=None, lr=0.0001):
 
 for i, CAPE in enumerate(CAPEs):
+
   fname_plot = 'poly_sounding_C%d'%(CAPE)
-  fname_out = 'poly_input_sounding_C%d_%2.2d.snd'%(CAPE,us1)
+  print("Creating: %s" % fname_plot)
+  fname_out = 'poly_input_sounding_QUART_C%d.snd'%(CAPE)
   profile_mw = mccaul_weisman(hgt,CAPE,m,zcape,ztrop,thetae_pbl=pblthe,RH_min=0.25,pbl_lapse = 0.008)
 
 #Returns     
@@ -138,6 +180,7 @@ for i, CAPE in enumerate(CAPEs):
 #            qv : water vapor mixing ratio (kg / kg)
 #            T : temperature (K) 
 #            Td : dewpoint (K)
+
   z = profile_mw['z']
   p = profile_mw['prs']
   t = profile_mw['T'] 
@@ -153,7 +196,8 @@ for i, CAPE in enumerate(CAPEs):
 #tdc = td #thermo.temp_at_mixrat(qv*1000., p/100.)
 #t = thermo.theta(1000.,th, p/100.)
 
-  u,v = shear(hgt, shear=us1)
+# u,v = shear(hgt, shear=us1)
+  u,v = shear(hgt, type=4, shear=us1)
 
 #   ukt = u*1.94384
 #   vkt = v*1.94384
