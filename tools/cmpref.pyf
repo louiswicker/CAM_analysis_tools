@@ -1,0 +1,148 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module cmpref ! in 
+    interface  ! in :cmpref
+        subroutine calcrefl10cm(qv,qc,qr,nr,qs,qg,t,p,dbz,kte,ite,jte) ! in :cmpref:comp_refl10cm.F90
+            real dimension(kte,jte,ite),intent(in) :: qv
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: qc
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: qr
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: nr
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: qs
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: qg
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: t
+            real dimension(kte,jte,ite),intent(in),depend(kte,jte,ite) :: p
+            real dimension(kte,jte,ite),intent(out),depend(kte,jte,ite) :: dbz
+            integer, optional,intent(in),check(shape(qv,0)==kte),depend(qv) :: kte=shape(qv,0)
+            integer, optional,intent(in),check(shape(qv,2)==ite),depend(qv) :: ite=shape(qv,2)
+            integer, optional,intent(in),check(shape(qv,1)==jte),depend(qv) :: jte=shape(qv,1)
+        end subroutine calcrefl10cm
+        subroutine calcrefl10cm1d(qv1d,qc1d,qr1d,nr1d,qs1d,qg1d,t1d,p1d,dbz,rand1,kts,kte) ! in :cmpref:comp_refl10cm.F90
+            use share
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: qv1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: qc1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: qr1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: nr1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: qs1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: qg1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: t1d
+            real dimension(kte-kts+1),intent(in),depend(kts,kte) :: p1d
+            real dimension(kte-kts+1),intent(inout),depend(kts,kte) :: dbz
+            real intent(in) :: rand1
+            integer intent(in) :: kts
+            integer intent(in) :: kte
+        end subroutine calcrefl10cm1d
+        subroutine rayleighsoakwetgraupel(xg,ageo,bgeo,fmelt,meltratiooutside,mw,mi,lambda,cback,mixingrule,matrix,inclusion,host,hostmatrix,hostinclusion) ! in :cmpref:comp_refl10cm.F90
+            use share
+            double precision intent(in) :: xg
+            double precision intent(in) :: ageo
+            double precision intent(in) :: bgeo
+            double precision intent(in) :: fmelt
+            double precision intent(in) :: meltratiooutside
+            complex*16 intent(in) :: mw
+            complex*16 intent(in) :: mi
+            double precision intent(in) :: lambda
+            double precision intent(out) :: cback
+            character*(*) intent(in) :: mixingrule
+            character*(*) intent(in) :: matrix
+            character*(*) intent(in) :: inclusion
+            character*(*) intent(in) :: host
+            character*(*) intent(in) :: hostmatrix
+            character*(*) intent(in) :: hostinclusion
+        end subroutine rayleighsoakwetgraupel
+        subroutine getmmix(mmix,ma,mi,mw,volair,volice,volwater,mixingrule,matrix,inclusion,error) ! in :cmpref:comp_refl10cm.F90
+            use share
+            complex*16 intent(inout) :: mmix
+            complex*16 intent(in) :: ma
+            complex*16 intent(in) :: mi
+            complex*16 intent(in) :: mw
+            double precision intent(in) :: volair
+            double precision intent(in) :: volice
+            double precision intent(in) :: volwater
+            character*(*) intent(in) :: mixingrule
+            character*(*) intent(in) :: matrix
+            character*(*) intent(in) :: inclusion
+            integer intent(out) :: error
+        end subroutine getmmix
+        subroutine mcomplexmaxwellgarnett(mmg,vol1,vol2,vol3,m1,m2,m3,inclusion,error) ! in :cmpref:comp_refl10cm.F90
+            use share
+            complex*16 intent(inout) :: mmg
+            double precision intent(in) :: vol1
+            double precision intent(in) :: vol2
+            double precision intent(in) :: vol3
+            complex*16 intent(in) :: m1
+            complex*16 intent(in) :: m2
+            complex*16 intent(in) :: m3
+            character*(*) intent(in) :: inclusion
+            integer intent(out) :: error
+        end subroutine mcomplexmaxwellgarnett
+        subroutine wgamma(wg,y) ! in :cmpref:comp_refl10cm.F90
+            use share
+            real intent(inout) :: wg
+            real intent(in) :: y
+        end subroutine wgamma
+        subroutine gammln(gln,xx) ! in :cmpref:comp_refl10cm.F90
+            real intent(out) :: gln
+            real intent(in) :: xx
+        end subroutine gammln
+        module share ! in :cmpref:share.F90
+            integer, parameter,optional :: nrbins=50
+            double precision dimension(51) :: xxdx
+            double precision dimension(50) :: xxds
+            double precision dimension(50) :: xdts
+            double precision dimension(50) :: xxdg
+            double precision dimension(50) :: xdtg
+            double precision, parameter,optional :: lamdaradar=0.1
+            double precision :: kw
+            double precision :: pi5
+            double precision :: lamda4
+            complex*16 :: mw0
+            complex*16 :: mi0
+            double precision dimension(51) :: simpson
+            double precision, optional,dimension(3) :: basis=(/1./3.,4./3.,1./3./)
+            real dimension(4) :: xcre
+            real dimension(4) :: xcse
+            real dimension(4) :: xcge
+            real dimension(4) :: xcrg
+            real dimension(4) :: xcsg
+            real dimension(4) :: xcgg
+            real :: xamr
+            real :: xbmr
+            real :: xmur
+            real :: xobmr
+            real :: xams
+            real :: xbms
+            real :: xmus
+            real :: xoams
+            real :: xobms
+            real :: xocms
+            real :: xamg
+            real :: xbmg
+            real :: xmug
+            real :: xoamg
+            real :: xobmg
+            real :: xocmg
+            real :: xorg2
+            real :: xosg2
+            real :: xogg2
+            integer, parameter,optional :: slen_bn=20
+            character(len=20) :: mixingrulestrings
+            character(len=20) :: matrixstrings
+            character(len=20) :: inclusionstrings
+            character(len=20) :: hoststrings
+            character(len=20) :: hostmatrixstrings
+            character(len=20) :: hostinclusionstrings
+            character(len=20) :: mixingrulestringg
+            character(len=20) :: matrixstringg
+            character(len=20) :: inclusionstringg
+            character(len=20) :: hoststringg
+            character(len=20) :: hostmatrixstringg
+            character(len=20) :: hostinclusionstringg
+            double precision, parameter,optional :: meltoutsides=0.9
+            double precision, parameter,optional :: meltoutsideg=0.9
+        end module share
+    end interface 
+end python module cmpref
+
+! This file was auto-generated with f2py (version:1.20.3).
+! See http://cens.ioc.ee/projects/f2py2e/
