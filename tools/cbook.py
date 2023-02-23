@@ -1,16 +1,11 @@
 import numpy as np
-import netCDF4 as ncdf
-import matplotlib.pyplot as plt
 import xarray as xr
 import glob as glob
 import os as os
 import glob
 import sys as sys
-import matplotlib as mpl
 
-from datetime import datetime
-import cftime
-import pickle
+from cmpref import cmpref_mod as cmpref
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -28,48 +23,149 @@ _Rgas       = 287.04
 _gravity    = 9.806
 _grav       = 9.806
 
-#--------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------
+#
 
-def write_Z_profile(data, model='WRF', tindex=0, iloc=0, jloc=0,  data_keys = ['hgt', 'press', 'theta', 'den', 'pert_p']):
+def compute_dbz(state):
+
+    temp   = state['temp']
+    pres   = state['pres']
+    qv     = state['qv']
+    qc     = state['qc']
+    qr     = state['qr']
+    qi     = np.zeros_like(qv)
+    qs     = np.zeros_like(qv)
+    qg     = np.zeros_like(qv)
+    dbz    = np.zeros_like(qv)
+
+    for n in np.arange(temp.shape[0]):
+#        print(n, dbz[n].max(), dbz[n].min())
+        dbz[n] = cmpref.calcrefl10cm(qv[n], qc[n], qr[n], qs[n], qg[n], temp[n], pres[n])
+#         print(n, dbz[n].max(), dbz[n].min())
+        
+    state['dbz'] = dbz
     
+    return state
+
+#
+#----------------------------------------------------------------------------
+ 
+
+#----------------------------------------------------------------------------
+#
+
+def print_sounding(state, level=False, vars = ['hgt', 'theta', 'qv', 'u', 'v']):
+
+    for k in np.arange(state['theta'].shape[1]):
+        if level:
+                
+            print("%3.3i  %.3f  %.3f  %.3f  %.3f  %.3f"%(k,
+                                                        state['hgt'][0,k,0,0], 
+                                                        state['theta'][0,k,0,0], 
+                                                        state['qv'][0,k,0,0]*1000.,
+                                                        state['u'][0,k,0,0], 
+                                                        state['v'][0,k,0,0]))
+
+        
+        else:
+        
+            print("%.3f  %.3f  %.3f  %.3f  %.3f" % (state['hgt'][0,k,0,0], 
+                                                    state['theta'][0,k,0,0], 
+                                                    state['qv'][0,k,0,0]*1000.,
+                                                    state['u'][0,k,0,0], 
+                                                    state['v'][0,k,0,0]))
+
+#
+#----------------------------------------------------------------------------
+        
+        
+#--------------------------------------------------------------------------------------------------
+#
+
+def write_Z_profile(state, model='WRF', loc=(0,-1,-1), vars = ['hgt', 'press', 'theta', 'den', 'pert_p']):
+
     try:
         from columnar import columnar
     except:
-        print("Need to install columnar into conda, exiting")
+        print("\n-----------------------------------------------\n")
+        print("Missing package columnar for printing...., exiting")
+        print("\n-----------------------------------------------\n")
         return
+
+    #----------------------------------------------------------------------------
+    #
+
+    def print_kernel(state, loc, subvars):
+
+        newlist = []
+        newlist.append(np.arange(state[vars[0]].shape[1]).tolist())
+        headers = ['level']
+
+        t_idx = loc[0]
+        i_idx = loc[1]
+        j_idx = loc[2]
+
+        for key in subvars:
+        
+            ds = state[key]
+
+            if ds.ndim < 4:
+                print("\n Variable %s does not have 4 dims, skipping...\n" % key)
+                continue
+        
+            if t_idx < 0:
+                ds = ds.mean(axis=0)
+            else:
+                ds = ds[t_idx]
+
+            if i_idx < 0 or j_idx < 0:
+                ds = ds.mean(axis = (1,2))
+            else:
+                ds = ds[:,:,j_idx,i_idx]
+ 
+            newlist.append(ds.tolist())
+            headers.append(key)
+
+        # need to rearange all the state into row like an excel spreadsheet
+    
+        row_data = [list(x) for x in zip(*newlist)]
+        
+        table = columnar(row_data, headers, no_borders=True)
+        print(table)
+
+    #
+    #----------------------------------------------------------------------------
     
     print('#-----------------------------#')
     print('          %s                  ' % model)
     print('#-----------------------------#')
     
-    newlist = []
-    newlist.append(np.arange(data['z3d'].shape[1]).tolist())
-    
-    headers = ['level']
-    
-    for key in data_keys:
-        
-        newlist.append(data[key][tindex,:,iloc,jloc].tolist())
-        headers.append(key)
+    # if the number of variables to be print is large - split the printing up...
 
-    # need to rearange all the data into row like an excel spreadsheet
-    
-    row_data = [list(x) for x in zip(*newlist)]
-        
-    table = columnar(row_data, headers, no_borders=True)
-    print(table)
+    for i in range(0, len(vars), 5):
 
-#==========================================================================================================
+        subvars = vars[i:i + 5]
+
+        print("\n Now printing: ",subvars)
+        
+        print_kernel(data, loc, subvars)
+
+    return
+    
+#
+#=========================================================================================
+
+#=========================================================================================
 #
 # GENERATE IDEAL PROFILES
 #
-#==========================================================================================================
-def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh = 5.0, cref_thresh = 45., 
-                            min_pix=1, percentiles=None, compDBZ=False, **kwargs):
+
+def generate_ideal_profiles(run_dir, model_type='wrf', filename=None, w_thresh = 5.0, 
+                            cref_thresh = 45., min_pix=1, percentiles=None, compDBZ=False, **kwargs):
     
     print("processing model run:  %s \n" % run_dir)
     
-    if model_type == 'solo' or if model_type == 'fv3_solo':
+    if model_type == 'solo' or model_type == 'fv3_solo':
 
         ds = read_solo_ 
         profiles = compute_obj_profiles(w, dbz, pres, z3d, w_thresh = w_thresh, cref_thresh = cref_thresh, 
