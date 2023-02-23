@@ -25,6 +25,7 @@ _nthreads = 2
 _Rgas       = 287.04
 _gravity    = 9.806
 _grav       = 9.806
+_default_file = "atmos_hifreq.nc"
 
 default_var_map = [        
                    'temp',   
@@ -51,11 +52,22 @@ default_var_map = [
 
 def read_solo_fields(path, vars = [''], file_pattern=None, 
                      ret_dbz=False, ret_ds=False, unit_test=False):
- 
-    if file_pattern == None:
-        print(f'-'*120,'\n')
-        print(" Reading in:  %s \n" % path)
-        ds = xr.open_dataset(path, decode_times=False)
+    	
+	if file_pattern == None:
+    
+	# see if the path has the filename on the end....
+		if os.path.basename(path)[:-3] != ".nc"
+			path = os.path.join(path, _default_file)
+			print("\ Added default filename to path input:  %s" % path)
+	
+		print(f'-'*120,'\n')
+		print(" Reading:  %s \n" % path)
+		try:
+			ds = xr.load_dataset(path, decode_times=False)
+		except:
+			print("Cannot find file in %s, exiting"  % path)
+			sys.exit(-1)
+
     else:
         ds = xr.load_dataset(os.path.join(path, file_pattern), decode_times=False)
         

@@ -23,6 +23,7 @@ _nthreads = 2
 _Rgas       = 287.04
 _gravity    = 9.806
 _grav       = 9.806
+_default_file = "wrfout_d01_0001-01-01_00:00:00"
 
 default_var_map = [        
                    'temp',   
@@ -75,10 +76,21 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     else:
         variables = default_var_map
 
-    if file_pattern == None:
-        print(f'-'*120,'\n')
-        print(" Reading:  %s \n" % path)
-        ds = xr.load_dataset(path,decode_times=False)
+	if file_pattern == None:
+    
+	# see if the path has the filename on the end....
+		if os.path.basename(path)[0:6] != "wrfout"
+			path = os.path.join(path, _default_file)
+			print("\ Added default filename to path input:  %s" % path)
+	
+		print(f'-'*120,'\n')
+		print(" Reading:  %s \n" % path)
+		try:
+			ds = xr.load_dataset(path, decode_times=False)
+		except:
+			print("Cannot find file in %s, exiting"  % path)
+			sys.exit(-1)
+
     else:
         ds   = open_mfdataset_list(run_dir, file_pattern)
 

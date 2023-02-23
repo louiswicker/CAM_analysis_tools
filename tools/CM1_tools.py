@@ -19,9 +19,10 @@ warnings.filterwarnings("ignore")
     
 _nthreads = 2
 
-_Rgas       = 287.04
-_gravity    = 9.806
-_grav       = 9.806
+_Rgas         = 287.04
+_gravity      = 9.806
+_grav         = 9.806
+_default_file = "cm1out.nc"
 
 default_var_map = [        
                    'temp',   
@@ -40,7 +41,17 @@ default_var_map = [
                    'theta',    
                    'pert_th',   
                    ]
-#==========================================================================================================
+                   
+#--------------------------------------------------------------------------------------------------
+def open_mfdataset_list(data_dir, pattern):
+	"""
+	Use xarray.open_mfdataset to read multiple netcdf files from a list.
+	"""
+	filelist = os.path.join(data_dir,pattern)
+	return xr.open_mfdataset(filelist, parallel=True)
+#--------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 #
 # READ CM1 FIELDS
 #
@@ -48,19 +59,19 @@ default_var_map = [
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
                     ret_dbz=False, unit_test=False):
  
-    #--------------------------------------------------------------------------------------------------
-    def open_mfdataset_list(data_dir, pattern):
-        """
-        Use xarray.open_mfdataset to read multiple netcdf files from a list.
-        """
-        filelist = os.path.join(data_dir,pattern)
-        return xr.open_mfdataset(filelist, parallel=True)
-    #--------------------------------------------------------------------------------------------------
-    
     if file_pattern == None:
+    	# see if the path has the filename on the end....
+    	if os.path.basename(path)[:-3] != ".nc"
+    		path = os.path.join(path, _default_file)
+    		print("\ Added default filename to path input:  %s" % path)
+    	
         print(f'-'*120,'\n')
         print(" Reading:  %s \n" % path)
-        ds = xr.load_dataset(path, decode_times=False)
+        try:
+        	ds = xr.load_dataset(path, decode_times=False)
+        except:
+        	print("Cannot find the file in %s, exiting"  % path)
+        	sys.exit(-1)
     else:
         ds = open_mfdataset_list(run_dir,  file_pattern)
         
