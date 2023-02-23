@@ -4,7 +4,7 @@ import glob as glob
 import os as os
 import glob
 import sys as sys
-from cbook import write_Z_profile
+from cbook import write_Z_profile, compute_dbz
 
 
 import warnings
@@ -45,7 +45,8 @@ default_var_map = [
 # READ CM1 FIELDS
 #
 
-def read_cm1_fields(path, vars = [''], file_pattern=None, unit_test=False):
+def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
+                    ret_dbz=False, unit_test=False):
  
     #--------------------------------------------------------------------------------------------------
     def open_mfdataset_list(data_dir, pattern):
@@ -59,8 +60,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, unit_test=False):
     if file_pattern == None:
         print(f'-'*120,'\n')
         print(" Reading:  %s \n" % path)
-        print(f'-'*120,'\n')
-        ds = xr.open_dataset(path, decode_times=False)
+        ds = xr.load_dataset(path, decode_times=False)
     else:
         ds = open_mfdataset_list(run_dir,  file_pattern)
         
@@ -69,7 +69,28 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, unit_test=False):
     else:
         variables = default_var_map
 
+    # storage bin
+
     dsout = {}
+        
+    # figure out if we need dbz to be computed
+    
+    if ret_dbz:
+    
+        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
+    
+        if os.path.exists(dbz_filename):
+            print("\nReading external DBZ file: %s" % dbz_filename)
+            with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
+                dsout['dbz'] = np.load(f)
+                
+            ret_dbz = False
+                        
+            for n in np.arange(dsout['dbz'].shape[0]):
+            	print(n, dsout['dbz'][n].max())
+            
+        else:
+            variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
 
     for key in variables:
 
@@ -122,7 +143,6 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, unit_test=False):
             pii  = (ds.prs.values / 100000.)**0.286
             dsout['temp'] = (ds.th0.values + ds.thpert.values)*pii
 
-
         if key == 'pii':
             dsout['pii'] = (ds.prs.values / 100000.)**0.286
 
@@ -132,6 +152,16 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, unit_test=False):
     if unit_test:
         write_Z_profile(dsout, model='CM1', vars=variables, loc=(10,-1,1))
 
-    ds.close()
+    if ret_dbz:
+        dsout = compute_dbz(dsout, version=2)
+        with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         
-    return dsout
+    print(" Completed reading in:  %s \n" % path)
+    print(f'-'*120,'\n')
+
+    if ret_ds:
+    	return dsout, ds
+    else:
+    	ds.close()
+    	return dsout
+ 

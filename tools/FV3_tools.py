@@ -50,14 +50,14 @@ default_var_map = [
 #
 
 def read_solo_fields(path, vars = [''], file_pattern=None, 
-					 ret_dbz=False, ret_ds=False, unit_test=False):
+                     ret_dbz=False, ret_ds=False, unit_test=False):
  
     if file_pattern == None:
         print(f'-'*120,'\n')
         print(" Reading in:  %s \n" % path)
         ds = xr.open_dataset(path, decode_times=False)
     else:
-        ds = xr.open_dataset(os.path.join(path, file_pattern), decode_times=False)
+        ds = xr.load_dataset(os.path.join(path, file_pattern), decode_times=False)
         
     if vars != ['']:
         variables = vars
@@ -72,19 +72,21 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
     
     if ret_dbz:
     
-        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npy')
-        print(dbz_filename)
+        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
     
         if os.path.exists(dbz_filename):
             print("\nReading external DBZ file: %s" % dbz_filename)
-            with open(os.path.join(os.path.basename(path), 'dbz.npy'), 'rb') as f:
+            with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
                 dsout['dbz'] = np.load(f)
                 
-            dbz_ret = False
+            ret_dbz = False
+                        
+            for n in np.arange(dsout['dbz'].shape[0]):
+            	print(n, dsout['dbz'][n].max())
             
         else:
-        	variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
-            
+            variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
+                        
     for key in variables:
 
         if key == 'theta': 
@@ -152,14 +154,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
     if ret_dbz:
-    	dsout = compute_dbz(dsout)
-    	with open(dbz_filename, 'wb') as f:  np.save(f, dbz)
+        dsout = compute_dbz(dsout, version=2)
+        with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120,'\n')
 
     if ret_ds:
-    	return dsout, ds
+        return dsout, ds
     else:
-    	ds.close()
-    	return dsout
+        ds.close()
+        return dsout

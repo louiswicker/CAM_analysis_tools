@@ -56,7 +56,7 @@ def open_mfdataset_list(data_dir, pattern, skip=0):
 	if skip > 0:
 		filelist = filelist[0:-1:skip]
 		
-	return xr.open_mfdataset(filelist, combine='nested', 
+	return xr.load_mfdataset(filelist, combine='nested', 
 							 concat_dim=['Time'], parallel=True)
 
 #
@@ -78,7 +78,7 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     if file_pattern == None:
         print(f'-'*120,'\n')
         print(" Reading:  %s \n" % path)
-        ds = xr.open_dataset(path,decode_times=False)
+        ds = xr.load_dataset(path,decode_times=False)
     else:
         ds   = open_mfdataset_list(run_dir, file_pattern)
 
@@ -90,18 +90,20 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     
     if ret_dbz:
     
-        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npy')
-        print(dbz_filename)
+        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
     
         if os.path.exists(dbz_filename):
             print("\nReading external DBZ file: %s" % dbz_filename)
-            with open(os.path.join(os.path.basename(path), 'dbz.npy'), 'rb') as f:
+            with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
                 dsout['dbz'] = np.load(f)
                 
-            dbz_ret = False
+            ret_dbz = False
+                        
+            for n in np.arange(dsout['dbz'].shape[0]):
+            	print(n, dsout['dbz'][n].max())
             
         else:
-        	variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
+            variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
 
     for key in variables:
 
@@ -167,9 +169,8 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         write_Z_profile(dsout, model='WRF', vars=variables, loc=(10,-1,1))
         
     if ret_dbz:
-    	dsout = compute_dbz(dsout)
-    	with open(dbz_filename, 'wb') as f:
-             np.save(f, dbz)
+        dsout = compute_dbz(dsout, version=2)
+        with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120,'\n')
