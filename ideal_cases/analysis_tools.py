@@ -76,7 +76,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
     
         ds = read_solo_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p', 'pert_pss'], ret_dbz=True)
+                                    'qv', 'pert_p', 'dzdt'], ret_dbz=True)
         
         ds['thetae'] = compute_thetae(ds)
         
@@ -88,7 +88,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
                                         extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p', 'pert_pss'], **kwargs)
+                                                    'qv', 'pert_p'], **kwargs)
 
         return profiles
     
@@ -263,23 +263,23 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         
 #-------------------------------------------------------------------------------
 
-def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'pres'], file_pattern=None):
+def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'pres', 'pert_th'], file_pattern=None):
     
-    print("processing model run:  %s \n" % run_dir)
+    print("processing model run:  %s \n" % path)
     
     if model_type == 'fv3_solo' or model_type =='solo':
 
         return read_solo_fields(path, file_pattern=file_pattern,
-                              vars=vars, ret_dbz=True)
+                                vars=vars, ret_dbz=True)
     
     if model_type == 'wrf':
     
         return read_wrf_fields(path, file_pattern=file_pattern,
-                              vars=vars, ret_dbz=True)
+                               vars=vars, ret_dbz=True)
     
     if model_type == 'cm1':
         
-        returnread_cm1_fields(path, file_pattern=file_pattern,
-                              vars=vars, ret_dbz=True)
+        return read_cm1_fields(path, file_pattern=file_pattern,
+                               vars=vars, ret_dbz=True)
     
     

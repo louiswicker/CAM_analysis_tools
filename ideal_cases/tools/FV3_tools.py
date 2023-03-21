@@ -127,7 +127,10 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['v'] = ds.vgrd.values[:,::-1,:,:]
 
         if key == 'w': 
-            dsout['w'] = ds.dzdt.values[:,::-1,:,:]
+            dsout['w'] = ds.w.values[:,::-1,:,:]
+
+        if key == 'dzdt': 
+            dsout['dzdt'] = ds.dzdt.values[:,::-1,:,:]
 
         if key == 'vvort': 
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
@@ -139,10 +142,16 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
         if key == 'pres':
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
-        if key == 'pert_p':
-            dsout['pert_p']   = ds.nhpres_pert.values[:,::-1,:,:]
-            dsout['pert_pss'] = ds.nhpres_pert.values[:,::-1,:,:]
+        if key == 'pert_p':    # code from L Harris Jupyter notebook
+            ptop       = ds.phalf[0]
+            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values[:,::-1,:,:]
+            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:]
+            p_from_qp  = ds.qp.cumsum(dim='pfull').values[:,::-1,:,:]
             
+            dsout['pert_p']   = pfull - pfull_ref - p_from_qv - p_from_qp            
+            dsout['pert_nh']  = ds.nhpres_pert[:,::-1,:,:]
+
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
 

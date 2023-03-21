@@ -37,8 +37,9 @@ solo  = {}
 cm1   = {}
 wrf   = {}
 
-run     = {"solo": "supercell_3km", "wrf": "supercell_3km", "cm1": "supercell_3km"}
-allcape = ("qv14",)
+run     = {"solo": "weisman_bench", "solo": "weisman_newpsolver"} # "cm1": "supercell_3km"}
+run     = {"solo": "weisman_3km"} # "cm1": "supercell_3km"}
+allcape = ("qv14", "qv16")
 
 solo  = {}
 cm1   = {}
