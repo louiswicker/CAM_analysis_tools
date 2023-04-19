@@ -88,7 +88,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
                                         extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p'], **kwargs)
+                                                    'qv', 'pert_p', 'dzdt'], **kwargs)
 
         return profiles
     

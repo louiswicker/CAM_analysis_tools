@@ -168,7 +168,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pii'] = (ds.prs.values / 100000.)**0.286
 
         if key == 'accum_prec':
-            dsout['accum_prec'] = 10.*ds.rain.values
+            dsout['accum_prec'] = 10.*ds.rain.values  # convert CM to MM
             
     if unit_test:
         write_Z_profile(dsout, model='CM1', vars=variables, loc=(10,-1,1))

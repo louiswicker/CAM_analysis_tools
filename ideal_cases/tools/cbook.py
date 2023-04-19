@@ -52,10 +52,12 @@ def pickle2Obj(file, retObj=True):
         Code to read a dictionary written to a pickle file, and if needed convert to a object
     """
     with open(file, 'rb') as f:
+        file = pickle.load(f)
+        f.close()
         if retObj == True:
-            return(DictObj(pickle.load(f)))
+            return(DictObj(file))
         else:
-            return(pickle.load(f))
+            return file
 #
 #--------------------------------------------------------------------------------------------------
 

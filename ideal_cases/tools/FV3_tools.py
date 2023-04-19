@@ -130,7 +130,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['w'] = ds.w.values[:,::-1,:,:]
 
         if key == 'dzdt': 
-            dsout['dzdt'] = ds.dzdt.values[:,::-1,:,:]
+            tmp           = 0.5*(ds.dzdt.values[:,1:,:,:] + ds.dzdt.values[:,:-1,:,:])
+            dsout['dzdt'] = tmp[:,::-1,:,:]
 
         if key == 'vvort': 
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
