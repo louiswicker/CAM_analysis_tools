@@ -21,6 +21,7 @@ from tools.thermo import compute_thetae
 w_thresh = 5.0
 cref_thresh = 35.
 percent = None
+min_pix = 3
 
 zhgts = 250. + 250.*np.arange(100)
 
@@ -33,17 +34,17 @@ dirs    = {
 profile_dir = "profiles"
 
 run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
-run      = {"solo": "squall_1km"}
+run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
+run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
+run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
 allcape  = ("C2000", "C3500")
 allshear = ( "06", "18" )
 
-solo  = {}
-cm1   = {}
-wrf   = {}
+plabel = "27Apr"
 
 for key in run:
 
-    field = {}
+    field = {'w_thres':w_thresh, 'cref_thresh':cref_thresh, 'min_pix': min_pix, 'percentile':percent}
 
     for shear in allshear:
         for cape in allcape:
@@ -52,10 +53,10 @@ for key in run:
 
             file = str(os.path.join(dirs[key], "%s_%s" % (run[key], label)))
             field[label] = generate_ideal_profiles(file, model_type=key, w_thresh = w_thresh,
-                                                   cref_thresh = cref_thresh,
+                                                   cref_thresh = cref_thresh, min_pix=min_pix,
                                                    percentile=percent, zhgts = zhgts)
 
-    with open('%s/%s_%s_35dbz_profiles.pkl' % (profile_dir, key, run[key]), 'wb') as handle:
+    with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
         pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("\n Squall_profiles wrote pickled file:  %s out!\n" % ('%s/%s_%s_35dbz_profiles.pkl' % (profile_dir, key, run[key])))
+    print("\n Squall_profiles wrote pickled file:  %s out!\n" % ('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel)))
