@@ -13,8 +13,7 @@ import pickle
 
 import tools
 
-from analysis_tools import read_solo_fields, read_wrf_fields, read_cm1_fields
-
+from analysis_tools import read_solo_fields, read_wrf_fields, read_cm1_fields, read_mpas_fields
 
 w_thresh = 5.0
 cref_thresh = 35.
@@ -26,18 +25,20 @@ dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
            "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
+           "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
 
 profile_dir = "profiles"
 
-run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
-run      = {"solo": "squall_1km"}
+run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
+run      = {"mpas": "squall_3km"}
 allcape  = ("C2000", "C3500")
 allshear = ( "06", "18" )
 
 solo  = {}
 cm1   = {}
 wrf   = {}
+mpas  = {}
 
 for key in run:
 
@@ -61,6 +62,9 @@ for key in run:
             if key == 'cm1':
                 cm1[label] = read_cm1_fields(file, file_pattern=None, vars=['accum_prec'])
                 
+            if key == 'mpas':
+                mpas[label] = read_mpas_fields(file, file_pattern=None, vars=['accum_prec'])
+                
 for key in run.keys():
     
     if key == 'solo':
@@ -74,6 +78,10 @@ for key in run.keys():
     if key == 'cm1':
         with open('precip/cm1_%s_accum_prec.pkl' % run['cm1'], 'wb') as handle:
             pickle.dump(cm1, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    if key == 'mpas':
+        with open('precip/mpas_%s_accum_prec.pkl' % run['mpas'], 'wb') as handle:
+            pickle.dump(mpas, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     print("\n Squall_precip wrote pickled file:  %s out!\n" % \
             ('%s/%s_%s_35dbz_profiles.pkl' % (profile_dir, key, run[key])))

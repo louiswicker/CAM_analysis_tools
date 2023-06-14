@@ -12,6 +12,7 @@ import tools
 from tools.FV3_tools import read_solo_fields
 from tools.CM1_tools import read_cm1_fields
 from tools.WRF_tools import read_wrf_fields
+from tools.MPAS_tools import read_mpas_fields
 from tools.thermo import compute_thetae
 from tools.cbook import get_percentile_value
 
@@ -115,6 +116,24 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
     if model_type == 'cm1':
         
         ds = read_cm1_fields(path, file_pattern=file_pattern,
+                              vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
+                                    'qv', 'pert_p'], ret_dbz=True)
+
+        ds['thetae'] = compute_thetae(ds)
+        
+        if percentile:
+            cref_thresh = get_percentile_value(ds['dbz'].max(axis=1), percentile=percentile)
+            print("\n CM1 CREF percentile value:  %f" % cref_thresh)
+                                                    
+        profiles = compute_obj_profiles(ds,
+                                        w_thresh = w_thresh, cref_thresh = cref_thresh, 
+                                        min_pix=min_pix, 
+                                        extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
+                                                    'qv', 'pert_p'], **kwargs)
+
+    if model_type == 'mpas':
+        
+        ds = read_mpas_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
                                     'qv', 'pert_p'], ret_dbz=True)
 
@@ -280,6 +299,11 @@ def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'pres', 'pert_th'], fil
     if model_type == 'cm1':
         
         return read_cm1_fields(path, file_pattern=file_pattern,
+                               vars=vars, ret_dbz=True)
+    
+    if model_type == 'mpas':
+        
+        return read_mpas_fields(path, file_pattern=file_pattern,
                                vars=vars, ret_dbz=True)
     
     

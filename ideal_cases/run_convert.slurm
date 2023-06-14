@@ -17,22 +17,21 @@ ulimit -s unlimited
 
 # Declare an array of string with type - no commas
 #declare -a CapeArray=("C1000" "C1500" "C2000" "C2500" "C3000" "C3500" )
-#declare -a CapeArray=("C2000" "C3500" )
-declare -a CapeArray=("C1500" "C2500" "C3000" )
+#declare -a CapeArray=("C1500" "C2500" "C3000" )
+declare -a CapeArray=("C2000" "C3500" )
 declare -a ShearArray=("06" "12" "18")
+declare -a ShearArray=( "12" )
 
-prefix="squall_3km"
+prefix="squall_3km_vMix"
 
 # Iterate the string array using for loop
 for shear in ${ShearArray[@]}; do
 
   for cape in ${CapeArray[@]}; do
 
-    cd /scratch/wicker/MPAS/ideal/squall
+    export EXP=/scratch/wicker/MPAS/ideal/squall/${prefix}_${cape}_${shear}
 
-    export EXP=${prefix}_${cape}_${shear}
-
-    cp convert_mpas.py $EXP/.
+    cp convert_mpas.py $EXP/convert_mpas.py
 
     cd $EXP
 

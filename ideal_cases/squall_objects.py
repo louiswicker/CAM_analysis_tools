@@ -32,14 +32,13 @@ dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
            "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
+           "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
 
 profile_dir = "object_stat"
 
-out_dir = "/work/wicker/Odin_scr/solo"
-
-run  = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
-run  = {"solo": "squall_3km"}
+run  = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
+run  = {"mpas": "squall_3km"}
 
 allcape = ("C2000","C3500")
 allshear = ("06", "12", "18")
