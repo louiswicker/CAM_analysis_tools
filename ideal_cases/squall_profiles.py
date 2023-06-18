@@ -36,14 +36,18 @@ profile_dir = "profiles"
 
 run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
 run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
-run      = {"mpas": "squall_3km"}
 
-run      = {"mpas": "squall_3km_vMix"}
+run      = {"cm1": "squall_3km"}
 run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
+
+run      = {"wrf": "squall_3km_3rd"}
+
+run      = {"solo": "squall_3km", "wrf": "squall_3km_3rd", "cm1": "squall_3km", "mpas": "squall_3km_3rd"}
+run      = {"mpas": "squall_3km_3rd"}
 allcape  = ("C2000", "C3500")
 allshear = ( "06", "12", "18" )
 
-plabel = "3pix"
+plabel = "precip"
 
 for key in run:
 

@@ -38,7 +38,7 @@ dirs    = {
 profile_dir = "object_stat"
 
 run  = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
-run  = {"mpas": "squall_3km"}
+run  = {"wrf": "squall_3km_3rd"}
 
 allcape = ("C2000","C3500")
 allshear = ("06", "12", "18")

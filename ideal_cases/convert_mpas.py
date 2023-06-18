@@ -20,6 +20,9 @@ parser.add_argument('-i', dest="infile", type=str,
 parser.add_argument('-o', dest="outfile", type=str, \
                     help="Filename for interpolated out from MPAS on quad grid",default=None)
 
+parser.add_argument('--nearest', dest="nearest", action='store_true', \
+                    help="flag to set nearest neighbor or IDW interpolation") 
+
 args = parser.parse_args()
 
 infile = args.infile
@@ -29,6 +32,9 @@ if args.outfile:
 else:
     outfile = ("%s_quad.nc") % infile[0:-3]
 
+nearest = args.nearest
+
+#--------------------------
 
 # Open input file, read cell centered coordinates
 
@@ -61,7 +67,15 @@ coord_C = list(zip(xC, yC))
 coord_G = list(zip(xx.flatten(), yy.flatten()))
 
 tree = KDTree(coord_C)
-dis, index = tree.query(coord_G, k=1)
+
+if nearest:
+    print("\n Using nearest neighbor interpolation \n")
+    dis, index = tree.query(coord_G, k=1)
+else:
+    print("\n Using IDW 5-pt interpolation \n")
+    dis, index = tree.query(coord_G, k=5)
+    wght = 1.0 / dis**2
+    wsum = 1.0 / np.sum(wght, axis=1)
 
 interp_arrays = {}
 
@@ -71,9 +85,20 @@ for key in output_variables:
 
     if len(fldC.shape) == 2:
 
-        fld_interp = fldC[:,index].reshape(ntimes, ny, nx)
-        
-        interp_arrays[key] = [len(fldC.shape), fld_interp, ntimes, ny, nx]
+        if nearest:
+
+            fld_interp = fldC[:,index].reshape(ntimes, ny, nx)
+
+        else:
+
+            fld_interp = []
+
+            for n in np.arange(ntimes):
+                fld_interp.append( np.sum(wght * fldC[n].flatten()[index], axis=1) * wsum )
+
+            fld_interp = np.array(fld_interp).reshape(ntimes, ny, nx)
+         
+            interp_arrays[key] = [len(fldC.shape), fld_interp, ntimes, ny, nx]
     
     elif len(fldC.shape) == 3:
 
@@ -84,7 +109,19 @@ for key in output_variables:
         if nz > nlevels:     # interp w to zone centers
             fldT = 0.5 * (fldT[:,1:,:] + fldT[:,:-1,:])
         
-        fld_interp = fldT[:,:,index].reshape(ntimes,nlevels,ny,nx)
+        if nearest:
+
+            fld_interp = fldT[:,:,index].reshape(ntimes,nlevels,ny,nx)
+
+        else:  #IDW
+
+            fld_interp = []
+            for n in np.arange(ntimes):
+                for k in np.arange(nlevels):
+                    fld_interp.append( np.sum(wght * fldT[n,k].flatten()[index], axis=1) * wsum )
+
+            fld_interp = np.array(fld_interp).reshape(ntimes,nlevels,ny,nx)
+         
         
         interp_arrays[key] = [len(fldT.shape), fld_interp, ntimes, nlevels, ny, nx]
         

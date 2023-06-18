@@ -114,11 +114,23 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['pert_t'] = ds.tmp.values[:,::-1,:,:] - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.tmp.shape) 
             
         if key == 'pert_th': 
-            tmp1  = ds.tmp.values[:,::-1,:,:]
-            tmp2  = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            tmp3  = ds.tmp.values[0,::-1,-1,-1]
-            tmp4  = np.broadcast_to(tmp3[np.newaxis, :, np.newaxis, np.newaxis], tmp1.shape) 
-            dsout['pert_th'] = tmp1/tmp2 - tmp4/tmp2
+            pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            theta    = ds.tmp.values[:,::-1,:,:] / pii
+            base_th  = theta[0,:,-1,-1]/pii[0,:,-1,-1]
+            dsout['pert_th'] = theta - np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
+
+        if key == 'buoy':
+            pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            theta    = ds.tmp.values[:,::-1,:,:] / pii
+            base_th  = theta[0,:,-1,-1]
+            base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
+            pert_th  = theta - base_th
+            qv       = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            base_qv  = qv[0,:,-1,-1]
+            base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
+            pert_qv  = qv - base_qv
+            dsout['buoy'] = 9.806*(pert_th/base_th + 0.61*pert_qv \
+                          - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]

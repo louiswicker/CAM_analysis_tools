@@ -113,6 +113,12 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         if key == 'pert_th': 
             dsout['pert_th'] = ds.thpert.values
             
+        if key == 'buoy': 
+            qv0 = ds.qv[0,:,-1,-1].values
+            qv0 = np.broadcast_to(qv0[np.newaxis, :, np.newaxis, np.newaxis], ds.qv.shape)
+            dsout['buoy'] = 9.806*(ds.thpert.values/ds.th0.values + 0.61*(ds.qv.values-qv0) \
+                          - ds.qc.values - ds.qr.values)
+
         if key == 'pert_t':
             base_pii = ds.pi0.values  
             base_th0 = ds.th0.values

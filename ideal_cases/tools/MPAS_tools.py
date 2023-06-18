@@ -112,6 +112,13 @@ def read_mpas_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             
         if key == 'pert_th': 
             dsout['pert_th'] = ds.theta.values - ds.theta_base.values
+
+        if key == 'buoy':
+            thpert  = ds.theta.values - ds.theta_base.values
+            base_qv = (ds.qv[0,:,-1,-1].values)
+            qvpert  = (ds.qv.values) - np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], ds.theta.shape)
+
+            dsout['buoy'] = 9.806*(thpert/ds.theta_base.values + 0.61*qvpert - ds.qc.values - ds.qr.values)
             
         if key == 'pert_t':
             base_pii = np.broadcast_to(ds.press.values[0][np.newaxis, :, :, :], ds.theta.shape)

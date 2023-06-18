@@ -130,6 +130,15 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             base_th = (ds.T[0,:,-1,-1].values+300.)
             dsout['pert_th'] = (ds.T.values+300.) - np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], ds.T.shape)
             
+        if key == 'buoy':
+            base_th = (ds.T[0,:,-1,-1].values+300.)
+            base_th = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], ds.T.shape)
+            thpert  = (ds.T.values+300.) - base_th
+            base_qv = (ds.QVAPOR[0,:,-1,-1].values)
+            qvpert  = (ds.QVAPOR.values) - np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], ds.T.shape)
+
+            dsout['buoy'] = 9.806*(thpert/base_th + 0.61*qvpert - ds.QCLOUD.values - ds.QRAIN.values)
+
         if key == 'u': 
             u      = ds.U.values
             dsout['u'] = 0.5*(u[:,:,:,1:] + u[:,:,:,:-1])

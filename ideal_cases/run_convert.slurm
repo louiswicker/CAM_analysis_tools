@@ -9,20 +9,25 @@
 
 #set -eux
 
+export WDIR=$PWD
+
 time1=$(date '+%s')
 echo "Job Started: $(date). Job Id:  $SLURM_JOBID"
 echo " "
+echo $WDIR
+echo "-----------------------"
 
 ulimit -s unlimited
 
 # Declare an array of string with type - no commas
 #declare -a CapeArray=("C1000" "C1500" "C2000" "C2500" "C3000" "C3500" )
 #declare -a CapeArray=("C1500" "C2500" "C3000" )
-declare -a CapeArray=("C2000" "C3500" )
-declare -a ShearArray=("06" "12" "18")
-declare -a ShearArray=( "12" )
+declare -a CapeArray=( "C2000" )
+declare -a ShearArray=( "06" )
+declare -a CapeArray=( "C2000" "C3500" )
+declare -a ShearArray=( "06" "12" "18" )
 
-prefix="squall_3km_vMix"
+prefix="squall_3km_3rd"
 
 # Iterate the string array using for loop
 for shear in ${ShearArray[@]}; do
@@ -36,6 +41,8 @@ for shear in ${ShearArray[@]}; do
     cd $EXP
 
     python convert_mpas.py
+
+    cd $WDIR
 
   done
 

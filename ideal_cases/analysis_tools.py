@@ -73,11 +73,12 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
     if percentile:
         print(" Processing objects with CREF percentile:  %f \n" % percentile)
     
+#---------------------------
     if model_type == 'fv3_solo' or model_type == 'solo':
     
         ds = read_solo_fields(path, file_pattern=file_pattern,
-                              vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p', 'dzdt'], ret_dbz=True)
+                              vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
+                                    'qv', 'pert_p', 'accum_prec', 'dzdt'], ret_dbz=True)
         
         ds['thetae'] = compute_thetae(ds)
         
@@ -88,16 +89,17 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         profiles = compute_obj_profiles(ds,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
-                                        extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p', 'dzdt'], **kwargs)
+                                        extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
+                                                    'qv', 'pert_p', 'accum_prec', 'dzdt'], **kwargs)
 
         return profiles
     
+#---------------------------
     if model_type == 'wrf':
         
         ds = read_wrf_fields(path, file_pattern=file_pattern,
-                             vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
-                                   'qv', 'pert_p'], ret_dbz=True)
+                             vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
+                                   'qv', 'pert_p', 'accum_prec'], ret_dbz=True)
                                                    
         ds['thetae'] = compute_thetae(ds)
 
@@ -108,16 +110,17 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         profiles = compute_obj_profiles(ds,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix,  
-                                        extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                     'qv', 'pert_p'], **kwargs)
+                                        extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
+                                                     'qv', 'pert_p', 'accum_prec'], **kwargs)
         
         return profiles
-        
+
+#---------------------------
     if model_type == 'cm1':
         
         ds = read_cm1_fields(path, file_pattern=file_pattern,
-                              vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p'], ret_dbz=True)
+                              vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
+                                    'qv', 'pert_p','accum_prec'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
@@ -128,14 +131,16 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         profiles = compute_obj_profiles(ds,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
-                                        extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p'], **kwargs)
+                                        extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
+                                                    'qv', 'pert_p','accum_prec'], **kwargs)
+        return profiles
 
+#---------------------------
     if model_type == 'mpas':
         
         ds = read_mpas_fields(path, file_pattern=file_pattern,
-                              vars=['hgt', 'pres', 'w', 'temp', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p'], ret_dbz=True)
+                              vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
+                                    'qv', 'pert_p', 'accum_prec'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
@@ -146,8 +151,8 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         profiles = compute_obj_profiles(ds,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
-                                        extra_vars=['temp', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p'], **kwargs)
+                                        extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
+                                                    'qv', 'pert_p', 'accum_prec'], **kwargs)
 
         return profiles
 
@@ -214,10 +219,28 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
     p_vars       = {}   # this is for the profiles we will create
     p_vars['dbz']= []
     p_vars['w']  = []
+#   p_vars['dbz_var']= []
+#   p_vars['w_var']  = []
     
     if extra_vars != None:
         for key in extra_vars:
-            vars[key]   = ds[key]  # this should be an array same shape as W, PRES, DBZ
+
+            if key == 'accum_prec':
+                invert     = ds['accum_prec'][::-1]
+                precip_dt  = ds['accum_prec'][1:] - ds['accum_prec'][0:-1]   # create 15 min bin 
+
+            # need to add in 0 for first 15 min, create an 3D array (1,ny,nx)
+                precip_bin = np.zeros((1, ds['dbz'].shape[2], ds['dbz'].shape[3])) 
+
+            # use the numpy append, to put zeros in [0] time index, put zero array first
+                precip_bin = np.append(precip_bin, precip_dt, axis=0)
+                print(precip_bin.shape, precip_bin[0].max())
+
+                vars[key] = np.broadcast_to(precip_bin[:, np.newaxis, :, :], ds['dbz'].shape)
+
+            else:
+                vars[key]   = ds[key]  # this should be an array same shape as W, PRES, DBZ
+
             p_vars[key] = []
                 
     all_obj  = 0
@@ -249,12 +272,20 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
                         w_obj += 1
                         if len(iloc) > 0 and len(jloc) > 0:
                            
-                            zraw    = ds['hgt'][n,:,jloc,iloc]             # get z_raw profiles
+                            zraw    = ds['hgt'][n,:,jloc,iloc]     # get z_raw profiles
                             
                             for key in p_vars:                     # loop through dictionary of variables.
+
+                            #   if key[-4:] != '_var':              # variance computed with raw variable
+
                                 tmp = vars[key][n,:,jloc,iloc]
-                                profile = interp3dz_np(tmp.transpose(), zraw.transpose(), zhgts, nthreads = _nthreads)
+
+                                profile = interp3dz_np(tmp.transpose(), zraw.transpose(), \
+                                                       zhgts, nthreads = _nthreads)
+
                                 p_vars[key].append([profile.mean(axis=(1,))],)
+
+                          #     p_vars[key+'_var'].append([profile.var(axis=(1,))],)
 
                                 if key == 'w':
                                     slist.append(tmp.shape[0])
