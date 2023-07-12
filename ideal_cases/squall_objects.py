@@ -37,11 +37,12 @@ dirs    = {
 
 profile_dir = "object_stat"
 
-run  = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
-run  = {"wrf": "squall_3km_3rd"}
+run  = {"solo": "squall_3km", "wrf": "squall_3km_3rd", "cm1": "squall_3km", "mpas": "squall_3km_3rd"}
+run  = {"mpas": "squall_3km_prandtl"}
+run  = {"solo": "squall_3km"}
 
 allcape = ("C2000","C3500")
-allshear = ("06", "12", "18")
+allshear = ("06","18")
 
 for key in run:
 

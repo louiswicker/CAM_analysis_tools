@@ -37,6 +37,7 @@ default_var_map = [
                    'qr',     
                    'pres',   
                    'pert_p',   
+                   'dpdz'
                    'pii',     
                    'accum_prec',
                    'theta',    
@@ -162,12 +163,13 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pres'] = ds.P.values + ds.PB.values
 
         if key == 'pert_p':
-            pertp = ds.P.values
-            meanp = pertp.mean(axis=(1,2,3))
-            dsout['pert_p'] = ds.P.values - np.broadcast_to(meanp[:, np.newaxis, np.newaxis, np.newaxis], ds.T.shape)
+        #   pertp = ds.P.values
+        #   meanp = pertp.mean(axis=(1,2,3))
+        #   dsout['pert_p'] = ds.P.values - np.broadcast_to(meanp[:, np.newaxis, np.newaxis, np.newaxis], ds.T.shape)
+            dsout['pert_p'] = ds.P.values
 
-        if key == 'base_p':
-            dsout['base_p'] = ds.PB.values
+        if key == 'dpdz':
+            dsout['dpdz'] = ds.PB.values
 
         if key == 'qv':
             dsout['qv'] = ds.QVAPOR.values

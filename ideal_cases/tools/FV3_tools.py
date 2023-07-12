@@ -102,26 +102,26 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
     for key in variables:
 
         if key == 'theta': 
-            tmp1  = ds.tmp.values[:,::-1,:,:]
-            tmp2  = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            dsout['theta'] = tmp1/tmp2
+            dsout['theta'] = ds.theta.values[:,::-1,:,:]
             
         if key == 'temp': 
-            dsout['temp'] = ds.tmp.values[:,::-1,:,:]
+            pii           = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            dsout['temp'] = pii*ds.theta.values[:,::-1,:,:]
             
         if key == 'pert_t': 
-            base_t = ds.tmp.values[0,::-1,-1,-1]
-            dsout['pert_t'] = ds.tmp.values[:,::-1,:,:] - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.tmp.shape) 
+            pii    = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            base_t = pii[0,:,-1,-1] * ds.theta.values[0,::-1,-1,-1]
+            dsout['pert_t'] = pii*ds.theta.values[:,::-1,:,:] - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.theta.shape) 
             
         if key == 'pert_th': 
             pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            theta    = ds.tmp.values[:,::-1,:,:] / pii
+            theta    = ds.theta.values[:,::-1,:,:]
             base_th  = theta[0,:,-1,-1]/pii[0,:,-1,-1]
             dsout['pert_th'] = theta - np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
 
         if key == 'buoy':
             pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            theta    = ds.tmp.values[:,::-1,:,:] / pii
+            theta    = ds.theta.values[:,::-1,:,:]
             base_th  = theta[0,:,-1,-1]
             base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_th  = theta - base_th
@@ -149,21 +149,25 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
 
         if key == 'hgt': 
-            tmp1 = ds.delz.values[:,::-1,:,:]
-            dsout['hgt'] = np.cumsum(tmp1,axis=1)
+            ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
+            dsout['hgt'] = np.zeros_like(ze)
+            dsout['hgt'][:,0,:,:]  = 0.5*ze[:,0,:,:]
+            dsout['hgt'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
 
         if key == 'pres':
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
-            ptop       = ds.phalf[0]
-            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values[:,::-1,:,:]
-            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:]
-            p_from_qp  = ds.qp.cumsum(dim='pfull').values[:,::-1,:,:]
+          # ptop       = ds.phalf[0]
+          # phalf      = ds.phalf[1:]
+          # pfull      = (ds.delp.sum(dim='pfull') + ptop).values[:,::-1,:,:]
+          # pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+          # p_from_qv  = ((ds.spfh)*ds.delp).sum(dim='pfull').values[:,::-1,:,:]
+          # p_from_qp  = ds.qp.sum(dim='pfull').values[:,::-1,:,:]
             
-            dsout['pert_p']   = pfull - pfull_ref - p_from_qv - p_from_qp            
-            dsout['pert_nh']  = ds.nhpres_pert[:,::-1,:,:]
+          # dsout['pert_p']  = pfull - pfull_ref - p_from_qv - p_from_qp            
+            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:]
+            dsout['pert_p']  = ds.nhpres[:,::-1,:,:]
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
@@ -178,7 +182,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['qr'] = ds.rwmr.values[:,::-1,:,:]
 
         if key == 'den':
-            dsout['den'] = ds.press.values[:,::-1,:,:] / (_Rgas * ds.tmp.values[:,::-1,:,:])
+            pii          = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            dsout['den'] = ds.press.values[:,::-1,:,:] / (_Rgas * pii*ds.theta.values[:,::-1,:,:])
 
         if key == 'pii':
             dsout['pii'] = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286

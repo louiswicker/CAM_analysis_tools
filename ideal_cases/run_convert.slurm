@@ -27,7 +27,7 @@ declare -a ShearArray=( "06" )
 declare -a CapeArray=( "C2000" "C3500" )
 declare -a ShearArray=( "06" "12" "18" )
 
-prefix="squall_3km_3rd"
+prefix="squall_3km_prandtl"
 
 # Iterate the string array using for loop
 for shear in ${ShearArray[@]}; do

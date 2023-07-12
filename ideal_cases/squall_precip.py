@@ -28,17 +28,25 @@ dirs    = {
            "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
 
-profile_dir = "profiles"
+profile_dir = "precip"
 
 run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
-run      = {"wrf": "squall_3km_3rd"}
+run      = {"cm1": "squall_3km_4th"}
 allcape  = ("C2000", "C3500")
 allshear = ( "06", "18" )
+allcape  = ("C2000",)
+allshear = ( "06", )
+
+run      = {"solo": "squall_3km"}
+allcape  = ("C2000", "C3500")
+allshear = ( "06", "18")
 
 solo  = {}
 cm1   = {}
 wrf   = {}
 mpas  = {}
+
+plabel = "RR"
 
 for key in run:
 
@@ -68,21 +76,19 @@ for key in run:
 for key in run.keys():
     
     if key == 'solo':
-        with open('precip/solo_%s_accum_prec.pkl' % run['solo'], 'wb') as handle:
+        with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
             pickle.dump(solo, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     if key == 'wrf':
-        with open('precip/wrf_%s_accum_prec.pkl' % run['wrf'], 'wb') as handle:
+        with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
             pickle.dump(wrf, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     if key == 'cm1':
-        with open('precip/cm1_%s_accum_prec.pkl' % run['cm1'], 'wb') as handle:
+        with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
             pickle.dump(cm1, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     if key == 'mpas':
-        with open('precip/mpas_%s_accum_prec.pkl' % run['mpas'], 'wb') as handle:
+        with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
             pickle.dump(mpas, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("\n Squall_precip wrote pickled file:  %s out!\n" % \
-            ('%s/%s_%s_35dbz_profiles.pkl' % (profile_dir, key, run[key])))
-
+    print("\n Squall_precip wrote pickled file:  %s out!\n" % ('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel)))

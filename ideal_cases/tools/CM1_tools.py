@@ -148,7 +148,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pres'] = ds.prs.values
 
         if key == 'pert_p':
-            dsout['pert_p'] = ds.prspert.values
+            dsout['pert_p'] = ds.prs.values - ds.prs0.values
 
         if key == 'base_p':
             dsout['base_p'] = ds.prs0.values
