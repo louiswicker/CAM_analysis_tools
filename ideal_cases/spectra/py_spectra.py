@@ -338,7 +338,7 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, sep = _sep1, **k
 # Plot spectral
     
 def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, linecolor='k', label=None, linestyle='-', linewidth=1.5, 
-                 ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
+                 ptitle='Power Spectra', loglog=True, LinsborgSlope = False, LineOnly=False, **kwargs):
     
     import matplotlib.ticker as mticker
     from spectra.py_spectra import get_spectra2D_RAD
@@ -403,15 +403,17 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         ylim = axes.get_ylim()
         
         if 'ylabels' in kwargs:
-            ylabel = kwargs.get('ylabels')
+            ylabel = kwargs.get('ylabels')[0]
         else:
             ylabel = ylim[0]
         
         xoffset = [0.01, 0.005, 0.0035, 0.0025, 0.001]
+
+        if not LineOnly:
         
-        for n, w in enumerate([4.0, 8.0, 12.0, 16.0]):
-            axes.axvline(x = (2.0/w), color = 'grey')  
-            axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], ylabel), xycoords='data', color='k',fontsize=12)
+            for n, w in enumerate([4.0, 8.0, 12.0, 16.0]):
+                axes.axvline(x = (2.0/w), color = 'grey')  
+                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 50*ylabel), xycoords='data', color='k',fontsize=12)
             
         if LinsborgSlope:
             xpt = [2.0/32.,2.0/2.0]
@@ -422,6 +424,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
             axes.loglog(xpt, ypt, color='red',linestyle='-.',label='k$^{-5/3}$')
 
     else:
+
         axes.plot(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth, label=label)
         axes.set_xlim(0.0, 1.0)
         

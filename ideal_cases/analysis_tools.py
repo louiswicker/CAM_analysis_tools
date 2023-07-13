@@ -313,7 +313,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         
 #-------------------------------------------------------------------------------
 
-def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'buoy', 'pres', 'pert_th'], file_pattern=None):
+def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
     
     print("processing model run:  %s \n" % path)
     
