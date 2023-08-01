@@ -78,7 +78,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
     
         ds = read_solo_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p', 'accum_prec', 'dzdt'], ret_dbz=True)
+                                    'qv', 'pert_p' ], ret_dbz=True)
         
         ds['thetae'] = compute_thetae(ds)
         
@@ -90,7 +90,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
                                         extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p', 'accum_prec', 'dzdt'], **kwargs)
+                                                    'qv', 'pert_p' ], **kwargs)
 
         return profiles
     
@@ -99,7 +99,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_wrf_fields(path, file_pattern=file_pattern,
                              vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                   'qv', 'pert_p', 'accum_prec'], ret_dbz=True)
+                                   'qv', 'pert_p' ], ret_dbz=True)
                                                    
         ds['thetae'] = compute_thetae(ds)
 
@@ -111,7 +111,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix,  
                                         extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                     'qv', 'pert_p', 'accum_prec'], **kwargs)
+                                                     'qv', 'pert_p'], **kwargs)
         
         return profiles
 
@@ -120,7 +120,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_cm1_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p','accum_prec'], ret_dbz=True)
+                                    'qv', 'pert_p'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
@@ -132,7 +132,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
                                         extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p','accum_prec'], **kwargs)
+                                                    'qv', 'pert_p'], **kwargs)
         return profiles
 
 #---------------------------
@@ -140,7 +140,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_mpas_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p', 'accum_prec'], ret_dbz=True)
+                                    'qv', 'pert_p'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
@@ -152,7 +152,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                                         w_thresh = w_thresh, cref_thresh = cref_thresh, 
                                         min_pix=min_pix, 
                                         extra_vars=['temp', 'buoy', 'theta', 'thetae', 'pert_t', 'pert_th',
-                                                    'qv', 'pert_p', 'accum_prec'], **kwargs)
+                                                    'qv', 'pert_p'], **kwargs)
 
         return profiles
 
@@ -200,7 +200,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         return None
    
     # thanks to Larissa Reames for suggestions on how to do this (and figuring out what to do!)
-    
+
     mask_cref   = np.where(ds['dbz'].max(axis=1) > cref_thresh, True, False)
     mask_w_3d   = np.where(ds['pres'] < 70000.0, ds['w'], np.nan)
     
@@ -247,7 +247,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
     w_obj    = 0
     
     for n in np.arange(vars['w'].shape[0]): # loop over number of time steps.            
-        
+
         # check to see if there are objects
         
         if (np.sum(f_mask[n]) == 0):
@@ -313,7 +313,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         
 #-------------------------------------------------------------------------------
 
-def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
+def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'u', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
     
     print("processing model run:  %s \n" % path)
     

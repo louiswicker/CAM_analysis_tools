@@ -166,11 +166,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
           # p_from_qp  = ds.qp.sum(dim='pfull').values[:,::-1,:,:]
             
           # dsout['pert_p']  = pfull - pfull_ref - p_from_qv - p_from_qp            
-            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:]
-            dsout['pert_p']  = ds.nhpres[:,::-1,:,:]
+            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values
+            dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+
+        if key == 'dpdz':
+            dsout['dpdz'] = ds.vaccel.values[:,::-1,:,:]
 
         if key == 'qv':
             dsout['qv'] = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio

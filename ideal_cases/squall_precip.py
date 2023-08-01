@@ -37,16 +37,16 @@ allshear = ( "06", "18" )
 allcape  = ("C2000",)
 allshear = ( "06", )
 
-run      = {"solo": "squall_3km"}
-allcape  = ("C2000", "C3500")
-allshear = ( "06", "18")
+run      = {"mpas": "squall_3km_3rd"}
+allcape  = ("C1500", "C2000", "C2500", "C3000", "C3500")
+allshear = ( "06","18")
 
 solo  = {}
 cm1   = {}
 wrf   = {}
 mpas  = {}
 
-plabel = "RR"
+plabel = "bench"
 
 for key in run:
 

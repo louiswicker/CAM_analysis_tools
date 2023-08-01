@@ -42,12 +42,16 @@ run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
 
 run      = {"wrf": "squall_3km_3rd"}
 
-run      = {"solo": "squall_3km"}
 run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
 allcape  = ("C2000", "C3500")
-allshear = ( "06", "12", "18")
 
-plabel = "RR"
+run      = {"solo": "squall_3km"}
+run      = {"cm1": "squall_3km"}
+run      = {"wrf": "squall_3km"}
+allcape  = ( "C2000", "C3500" )
+allshear = ( "06", "18")
+
+plabel = "final"
 
 for key in run:
 
