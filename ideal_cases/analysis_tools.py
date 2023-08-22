@@ -249,7 +249,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
     for n in np.arange(vars['w'].shape[0]): # loop over number of time steps.            
 
         # check to see if there are objects
-        
+
         if (np.sum(f_mask[n]) == 0):
             
             tindex.append(w_obj)
@@ -260,12 +260,16 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
             
             # returns a 2D array of labels for updrafts)
             label_array, num_obj = label(f_mask[n], background=0, connectivity=2, return_num = True) 
-            
+
+            num_obj_start = 1
+            if num_obj == 1:
+                num_obj_start = 0
+
             all_obj += num_obj
 
             if( num_obj > 0 ):                                     # if there is more than the background object, process array.
 
-                for l in np.arange(1,num_obj):                     # this is just a list of 1,2,3,4.....23,24,25....
+                for l in np.arange(num_obj_start,num_obj):         # this is just a list of 1,2,3,4.....23,24,25....
                     npix = np.sum(label_array == l)                # this is a size check - number of pixels assocated with a label
                     if npix >= min_pix:
                         jloc, iloc = np.where(label_array == l)    # extract out the locations of the updrafts 

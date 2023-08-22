@@ -93,8 +93,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
                 
             ret_dbz = False
                         
-            # for n in np.arange(dsout['dbz'].shape[0]):
-            #     print(n, dsout['dbz'][n].max())
+           #for n in np.arange(dsout['dbz'].shape[0]):
+           #    print(n, dsout['dbz'][n].max())
             
         else:
             variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )

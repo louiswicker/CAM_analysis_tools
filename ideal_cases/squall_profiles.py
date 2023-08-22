@@ -45,13 +45,11 @@ run      = {"wrf": "squall_3km_3rd"}
 run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
 allcape  = ("C2000", "C3500")
 
-run      = {"solo": "squall_3km"}
-run      = {"cm1": "squall_3km"}
-run      = {"wrf": "squall_3km"}
-allcape  = ( "C2000", "C3500" )
-allshear = ( "06", "18")
+run      = {"mpas": "squall_3km_3rd"}
+allcape  = ("C1500", "C2000", "C2500", "C3000", "C3500")
+allshear = ( "06","18")
 
-plabel = "final"
+plabel = "bench"
 
 for key in run:
 

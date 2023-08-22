@@ -37,7 +37,7 @@ allshear = ( "06", "18" )
 allcape  = ("C2000",)
 allshear = ( "06", )
 
-run      = {"mpas": "squall_3km_3rd"}
+run      = {"mpas": "squall_3km"}
 allcape  = ("C1500", "C2000", "C2500", "C3000", "C3500")
 allshear = ( "06","18")
 
