@@ -18,16 +18,16 @@ from analysis_tools import generate_ideal_profiles
 from tools.thermo import compute_thetae
 
 
-w_thresh = 5.0
+w_thresh = 2.0
 cref_thresh = 35.
-percent = None
+percent = 0.99
 min_pix = 3
 
 zhgts = 250. + 250.*np.arange(100)
 
 dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
-           "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
+           "wrf": "/scratch/wicker/WRF_v4.4.2/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
            "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
@@ -42,14 +42,15 @@ run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
 
 run      = {"wrf": "squall_3km_3rd"}
 
-run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
-allcape  = ("C2000", "C3500")
+run      = {"solo": "squall_3km_hdd03"}
 
-run      = {"mpas": "squall_3km_3rd"}
-allcape  = ("C1500", "C2000", "C2500", "C3000", "C3500")
-allshear = ( "06","18")
+run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
+run      = {"solo": "squall_3km_hdd02"}
 
-plabel = "bench"
+allcape  = ( "C2000", "C3500")
+allshear = ( "06", "18")
+
+plabel = "bench_dbz99"
 
 for key in run:
 

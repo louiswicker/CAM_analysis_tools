@@ -30,20 +30,16 @@ _nthreads = 2
 
 dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
-           "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
+           "wrf": "/scratch/wicker/WRF_v4.4.2/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
-           "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
 
 profile_dir = "object_stat"
 
-run  = {"mpas": "squall_3km"}
+run  = {"solo": "squall_3km_dt10", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
 
-run  = {"solo": "squall_3km", "wrf": "squall_3km"}
-run  = {"cm1": "squall_3km"}
-
-allcape = ("C2000","C3500")
-allshear = ("06","18")
+allcape = ("C2000", "C3500")
+allshear = ("06", "18")
 
 for key in run:
 
