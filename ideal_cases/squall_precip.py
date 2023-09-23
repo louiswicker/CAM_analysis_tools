@@ -23,23 +23,23 @@ zhgts = 250. + 250.*np.arange(100)
 
 dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
-           "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
+           "wrf": "/scratch/wicker/WRF_v4.4.2/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
            "mpas": "/scratch/wicker/MPAS/ideal/squall",
           }
 
 profile_dir = "precip"
 
-run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km", "mpas": "squall_3km"}
 run      = {"cm1": "squall_3km_4th"}
-allcape  = ("C2000", "C3500")
-allshear = ( "06", "18" )
 allcape  = ("C2000",)
 allshear = ( "06", )
 
 run      = {"mpas": "squall_3km"}
-allcape  = ("C1500", "C2000", "C2500", "C3000", "C3500")
-allshear = ( "06","18")
+
+run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
+run      = {"solo": "squall_3km_n1"}
+allcape  = ("C2000", "C3500")
+allshear = ( "06", "18" )
 
 solo  = {}
 cm1   = {}

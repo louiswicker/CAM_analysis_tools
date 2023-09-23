@@ -36,7 +36,7 @@ dirs    = {
 
 profile_dir = "object_stat"
 
-run  = {"solo": "squall_3km_dt10", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
+run  = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
 
 allcape = ("C2000", "C3500")
 allshear = ("06", "18")
@@ -57,6 +57,6 @@ for key in run:
     with open('%s/%s_%s_obj.pkl' % (profile_dir, key, run[key]), 'wb') as handle:
         pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("\n Compute_Profiles wrote pickled file:  %s out!\n" % ('%s/%s_%s_obj.pkl' % (profile_dir, key, run[key])))
+    print("\n Squall_Objects wrote pickled file:  %s out!\n" % ('%s/%s_%s_obj.pkl' % (profile_dir, key, run[key])))
 
 # the end

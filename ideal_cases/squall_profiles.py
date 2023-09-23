@@ -45,7 +45,7 @@ run      = {"wrf": "squall_3km_3rd"}
 run      = {"solo": "squall_3km_hdd03"}
 
 run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
-run      = {"solo": "squall_3km_hdd02"}
+run      = {"cm1": "squall_3km_hdd2"}
 
 allcape  = ( "C2000", "C3500")
 allshear = ( "06", "18")
