@@ -396,7 +396,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         
         axes.set_xlim(2/waven.shape[0], 1.0)
 
-        #axes.annotate("%s\nLog Power Scale" % legend, xy=(0.10, 0.25), xycoords='axes fraction', color='k',fontsize=18)
+        axes.annotate("%s" % legend, xy=(0.05, 0.25), xycoords='axes fraction', color='k',fontsize=14)
         
         axes.xaxis.set_major_formatter(lambda x, pos: str(int(2.0/x)))
            
@@ -413,7 +413,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         
             for n, w in enumerate([4.0, 8.0, 12.0, 16.0]):
                 axes.axvline(x = (2.0/w), color = 'grey')  
-                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 50*ylabel), xycoords='data', color='k',fontsize=12)
+                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 70*ylabel), xycoords='data', color='k',fontsize=12)
             
         if LinsborgSlope:
             xpt = [2.0/32.,2.0/2.0]
@@ -432,7 +432,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         axes.set_xticklabels([r'$\infty$', r"10", r"5", r"3.3", r"2.5", r"2.0"],fontsize=12, weight='bold')
         
         for w in [4.0, 6.0, 8.0, 10.0, 12.0, 16.0]:
-            axes.annotate(r"%d" % int(w), xy = (2.0/w-0.01, -0.035), xycoords='axes fraction', color='k',fontsize=12)
+            axes.annotate(r"%d" % int(w), xy = (2.0/w-0.01, -0.015), xycoords='axes fraction', color='k',fontsize=12)
             axes.axvline(x = 2.0/w-0.0075, color = 'grey')
             
         #axes.annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
