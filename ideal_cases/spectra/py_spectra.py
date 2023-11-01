@@ -394,7 +394,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         
         axes.loglog(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth, label=label)
         
-        axes.set_xlim(2/waven.shape[0], 1.0)
+        axes.set_xlim(2/waven.shape[0], 1.25)
 
         axes.annotate("%s" % legend, xy=(0.05, 0.25), xycoords='axes fraction', color='k',fontsize=14)
         
@@ -411,9 +411,10 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
 
         if not LineOnly:
         
-            for n, w in enumerate([4.0, 8.0, 12.0, 16.0]):
+            for n, w in enumerate([4.0, 6.0, 10.0, 16.0]):
                 axes.axvline(x = (2.0/w), color = 'grey')  
-                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 70*ylabel), xycoords='data', color='k',fontsize=12)
+                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 10*ylabel), xycoords='data', color='k',fontsize=12)
+            axes.axvline(x = (1.0), color = 'grey', linestyle='--', alpha=0.40)
             
         if LinsborgSlope:
             xpt = [2.0/32.,2.0/2.0]
