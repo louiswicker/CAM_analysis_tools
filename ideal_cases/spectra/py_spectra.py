@@ -143,10 +143,9 @@ def get_spectra2D_DCT(fld, dx=1., dy=1., varray = None, sep=_sep1, **kwargs):
         print_info = False
         
     if 'detrend' in kwargs:            # dont need to detrend data for DCT-II transform.
-        detrend = kwargs['detrend']
-    else:
-        detrend = False
-    
+        if print_info:
+            print(" Dont need to detrend data for DCT-II transform.....")
+        
     u = square_grid(fld, print_info)
     
     if type(varray) != type(None):
@@ -233,9 +232,10 @@ def get_spectra2D_RAD(fld, varray = None, sep=_sep1, **kwargs):
         detrend = kwargs['detrend']
     else:
         detrend = False
+
+    if print_info:
+        print("plot_spectra: DETREND = %s\n" % (detrend))
         
-    # print("%sget_spectra2D_RAD: computing spectra" % sep)  
-    
     if detrend:
         u = remove_trend(square_grid(fld, print_info), print_info)
     else:
@@ -337,7 +337,8 @@ def get_spectraND(fld, varray = None, func = get_spectra2D_RAD, sep = _sep1, **k
 #-------------------------------------------------------------------------------------
 # Plot spectral
     
-def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax = None, linecolor='k', label=None, linestyle='-', linewidth=1.5, 
+def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, 
+                 ax = None, linecolor='k', label=None, linestyle='-', linewidth=1.5, 
                  ptitle='Power Spectra', loglog=True, LinsborgSlope = False, LineOnly=False, **kwargs):
     
     import matplotlib.ticker as mticker
@@ -365,7 +366,6 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         print("plot_spectra: Spectrum from a single variable")
     else:
         print("plot_spectra: Spectrum computed for KE")
-    print("plot_spectra: DETREND = %s\n" % (detrend))
     
 # -------------
 
@@ -394,26 +394,30 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         
         axes.loglog(waven, Abins, color=linecolor, linestyle=linestyle, linewidth=linewidth, label=label)
         
-        axes.set_xlim(2/waven.shape[0], 1.25)
+        if not 'xlim' in kwargs:
+             axes.set_xlim(2/waven.shape[0], 1.25)
 
-        axes.annotate("%s" % legend, xy=(0.05, 0.25), xycoords='axes fraction', color='k',fontsize=14)
+#       axes.annotate("%s" % legend, xy=(0.05, 0.25), xycoords='axes fraction', color='k',fontsize=12)
+        ax.legend(fontsize=12, loc='lower left')
+        axes.xaxis.set_major_formatter(lambda x, pos: str(r"%d$\Delta$x" % int(2.0/x)))
+        ticklabels = [2, 4, 6, 10, 16, 20]
+        ticks      = [1., 2./4., 2./6., 2./10., 2./16., 2./20.]
+       #    axes.get_xaxis().set_tick_params(which='minor', size=0)
+       #    axes.get_xaxis().set_tick_params(which='minor', width=0) 
+        axes.set_xticks(ticks)
         
-        axes.xaxis.set_major_formatter(lambda x, pos: str(int(2.0/x)))
-           
         ylim = axes.get_ylim()
         
-        if 'ylabels' in kwargs:
-            ylabel = kwargs.get('ylabels')[0]
-        else:
-            ylabel = ylim[0]
+        if 'ylim' in kwargs:
+            ylim = kwargs.get('ylim')
         
         xoffset = [0.01, 0.005, 0.0035, 0.0025, 0.001]
 
         if not LineOnly:
-        
-            for n, w in enumerate([4.0, 6.0, 10.0, 16.0]):
-                axes.axvline(x = (2.0/w), color = 'grey')  
-                axes.annotate(r"%d$\Delta$x" % w, xy=(2.0/w + xoffset[n], 10*ylabel), xycoords='data', color='k',fontsize=12)
+
+            for n, w in enumerate(ticks):
+                axes.axvline(w, color = 'grey')  
+
             axes.axvline(x = (1.0), color = 'grey', linestyle='--', alpha=0.40)
             
         if LinsborgSlope:
@@ -439,10 +443,13 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
         #axes.annotate("%s\nLinear Power Scale" % legend, xy=(0.70, 0.25), xycoords='axes fraction', color='k',fontsize=18)
 
     axes.set_xlabel(r"Wavelength in ($\Delta$x)", fontsize=12)
-    axes.set_ylabel(r"%s Spectral Density (m$^3$ s$^{-2}$)" % ptitle, fontsize=16)
+#   axes.set_ylabel(r"%s Spectral Density (m$^3$ s$^{-2}$)" % ptitle, fontsize=16)
+    axes.set_ylabel(r"%s Energy Density" % ptitle, fontsize=16)
     
-    if 'ylim' in kwargs:
-        axes.set_ylim(kwargs.get('ylim'))
+    axes.set_ylim(ylim)
+
+    if 'xlim' in kwargs:
+        axes.set_xlim(kwargs.get('xlim'))
 
     plt.title(ptitle, fontsize=18)
     

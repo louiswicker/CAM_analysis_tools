@@ -45,12 +45,15 @@ run      = {"wrf": "squall_3km_3rd"}
 run      = {"solo": "squall_3km_hdd03"}
 
 run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
-run      = {"cm1": "squall_3km_8th"}
+run      = {"solo": "squall_3km_dt30_hdd012"}
+
+run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
+run      = {"cm1": "squall_3km_dt05_hdd125"}
 
 allcape  = ( "C2000", "C3500")
 allshear = ( "06", "18")
 
-plabel = "bench_dbz99"
+plabel = "dbz99"
 
 for key in run:
 

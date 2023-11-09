@@ -42,6 +42,15 @@ run  = {"solo": "squall_3km_hdd02"}
 allcape = ("C2000", "C3500")
 allshear = ("06", "18")
 
+run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
+run      = {"cm1": "squall_3km_dt10_hdd125", "solo": "squall_3km_dt20_hdd125"}
+run      = {"cm1": "squall_3km_dt10_hdd000"}
+
+allcape  = ( "C2000", "C3500")
+allshear = ( "06", "18")
+
+plabel = "dbz99"
+
 for key in run:
 
     field = {}
@@ -55,9 +64,9 @@ for key in run:
             field[label] = getobjdata(file, model_type=key)
                 
         
-    with open('%s/%s_%s_obj.pkl' % (profile_dir, key, run[key]), 'wb') as handle:
+    with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
         pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("\n Squall_Objects wrote pickled file:  %s out!\n" % ('%s/%s_%s_obj.pkl' % (profile_dir, key, run[key])))
+    print("\n Squall_obj wrote pickled file:  %s out!\n" % ('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel)))
 
 # the end

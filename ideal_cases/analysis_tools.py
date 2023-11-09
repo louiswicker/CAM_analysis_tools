@@ -31,6 +31,20 @@ _Rgas     = 287.04
 _gravity  = 9.806
 
 #--------------------------------------------------------------------------------------------------
+def check_data(models):
+    for mkey in models.keys():
+        print("\n%s" % mkey)
+        for rkey in models[mkey]:
+            if(rkey[0] == 'C'):
+                for  vkey in models[mkey][rkey]:
+                    try:
+                        print(mkey, rkey, vkey, models[mkey][rkey][vkey].shape)
+                    except:
+                        print(mkey, rkey, vkey)
+            else:
+                print(mkey, rkey)
+                
+#--------------------------------------------------------------------------------------------------
 # Interp from 3D pressure to 1D pressure (convert from hybrid to constant p-levels)
 
 def interp3d_np(data, p3d, p1d, nthreads = _nthreads):
@@ -317,7 +331,7 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         
 #-------------------------------------------------------------------------------
 
-def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'u', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
+def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'u', 'v', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
     
     print("processing model run:  %s \n" % path)
     

@@ -37,16 +37,22 @@ allshear = ( "06", )
 run      = {"mpas": "squall_3km"}
 
 run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
-run      = {"solo": "squall_3km_hdd02"}
+run      = {"cm1": "squall_3km_8th"}
 allcape  = ("C2000", "C3500")
 allshear = ( "06", "18" )
+
+run      = {"cm1": "squall_3km_dt10_hdd125", "solo": "squall_3km_dt20_hdd125"}
+run      = {"cm1": "squall_3km_dt10_hdd000"}
+
+allcape  = ( "C2000", "C3500")
+allshear = ( "06", "18")
+
+plabel = "dbz99"
 
 solo  = {}
 cm1   = {}
 wrf   = {}
 mpas  = {}
-
-plabel = "bench"
 
 for key in run:
 
