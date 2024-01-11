@@ -44,10 +44,10 @@ allshear = ("06", "18")
 
 run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
 run      = {"cm1": "squall_3km_dt10_hdd125", "solo": "squall_3km_dt20_hdd125"}
-run      = {"cm1": "squall_3km_dt10_hdd000"}
+run      = {"solo": "squall_3km_dt20_hdd001"}
 
 allcape  = ( "C2000", "C3500")
-allshear = ( "06", "18")
+allshear = ( "06", )
 
 plabel = "dbz99"
 

@@ -20,7 +20,7 @@ from tools.thermo import compute_thetae
 
 w_thresh = 2.0
 cref_thresh = 35.
-percent = 0.99
+percent = 0.1
 min_pix = 3
 
 zhgts = 250. + 250.*np.arange(100)
@@ -48,12 +48,14 @@ run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3k
 run      = {"solo": "squall_3km_dt30_hdd012"}
 
 run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
-run      = {"cm1": "squall_3km_dt05_hdd125"}
 
 allcape  = ( "C2000", "C3500")
-allshear = ( "06", "18")
 
-plabel = "dbz99"
+run      = {"solo": "bubble_3km_dt20_hdd001"}
+allcape  = ( "C2000", )
+allshear = ( "00", )
+
+plabel = "dbz01"
 
 for key in run:
 
