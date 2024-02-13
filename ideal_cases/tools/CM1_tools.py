@@ -4,6 +4,9 @@ import glob as glob
 import os as os
 import glob
 import sys as sys
+
+from numpy.fft import fft2, ifft2, fftfreq
+
 from tools.cbook import write_Z_profile, compute_dbz
 
 import warnings
@@ -78,7 +81,17 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         ds = open_mfdataset_list(run_dir,  file_pattern)
         
     if vars != ['']:
-        variables = vars
+
+        if vars[0] == '+':
+            newlist = []
+            for var in vars[1:]: 
+                newlist.append(var)
+
+            variables = list(set(default_var_map + newlist))
+
+        else:
+            variables = vars
+
     else:
         variables = default_var_map
 
@@ -178,6 +191,62 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         if key == 'accum_prec':
             dsout['accum_prec'] = 10.*ds.rain.values  # convert CM to MM
+
+        if key == 'div2d':
+            print(" -->Computing finite difference 2D divergence\n")
+            u = ds.u.values
+            v = ds.v.values
+            dx = ds.xh[1].values - ds.xh[0].values
+            dsout['div2d'] = (u[:,:,:,1:] - u[:,:,:,:-1] + v[:,:,1:,:] - v[:,:,:-1,:]) / dx
+
+        if key == 'uns_div2d':
+            print(" -->Computing unstaggered finite difference 2D divergence\n")
+            us = ds.u.values
+            u  = 0.5*(us[:,:,:,1:] + us[:,:,:,:-1])
+
+            vs = ds.v.values
+            v  = 0.5*(vs[:,:,1:,:] + vs[:,:,:-1,:])
+
+            dx = ds.xh[1].values - ds.xh[0].values
+
+            dudx = np.gradient(u, axis=3)
+            dvdy = np.gradient(v, axis=2)
+
+            dsout['uns_div2d'] = (dudx + dvdy) / dx
+
+        if key == 'fft_div2d':
+
+            print(" -->Computing FFT 2D divergence\n")
+
+            x1 = ds.xh[:-1].values
+            y1 = ds.yh[:-1].values
+            Nx = x1.shape[0]
+            Ny = y1.shape[0]
+
+            if Nx != Ny:
+                print("\n Warning, Nx != Ny, not sure if fft works!....\n")
+
+            kx = fftfreq(Nx) * 2*np.pi * Nx / (x1[-1] - x1[0])
+            ky = fftfreq(Ny) * 2*np.pi * Ny / (y1[-1] - y1[0])
+            Kx, Ky  = np.meshgrid(kx, ky, indexing='ij')
+            wavenumbers = np.stack((Kx, Ky))
+            derivative_op = 1j * wavenumbers
+
+            us = ds.u.values
+            u  = 0.5*(us[:,:,:,1:] + us[:,:,:,:-1])[:,:,:-1,:-1]
+
+            vs = ds.v.values
+            v  = 0.5*(vs[:,:,1:,:] + vs[:,:,:-1,:])[:,:,:-1,:-1]
+
+            div2d = np.zeros_like(u)
+
+            for n in np.arange(u.shape[0]):
+                for k in np.arange(ds.nz):
+                    div2d[n,k] = ifft2(1j * Kx * fft2(u[n,k])) \
+                               + ifft2(1j * Ky * fft2(v[n,k]))
+
+            dsout['fft_2d_div'] = div2d.real
+
             
     if unit_test:
         write_Z_profile(dsout, model='CM1', vars=variables, loc=(10,-1,1))

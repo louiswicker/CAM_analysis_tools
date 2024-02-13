@@ -18,9 +18,9 @@ from analysis_tools import generate_ideal_profiles
 from tools.thermo import compute_thetae
 
 
-w_thresh = 2.0
+w_thresh = 3.0
 cref_thresh = 35.
-percent = 0.1
+percent = .99
 min_pix = 3
 
 zhgts = 250. + 250.*np.arange(100)
@@ -51,13 +51,15 @@ run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
 
 allcape  = ( "C2000", "C3500")
 
-run      = {"solo": "bubble_3km_dt20_hdd001"}
-allcape  = ( "C2000", )
-allshear = ( "00", )
+run      = {"cm1_0": "squall_3km_dt05_hdd012", "cm1_1": "squall_3km_dt05_hdd125", "cm1_2": "squall_3km_dt05_hdd000"}
+allcape  = ( "C2000", "C3500" )
+allshear = ( "06", "18" )
 
-plabel = "dbz01"
+plabel = "dbz99_4th"
 
 for key in run:
+
+    key2 = key[0:3]
 
     field = {'w_thres':w_thresh, 'cref_thresh':cref_thresh, 'min_pix': min_pix, 'percentile':percent}
 
@@ -66,12 +68,12 @@ for key in run:
         
             label = "%s_%s" % (cape, shear)
 
-            file = str(os.path.join(dirs[key], "%s_%s" % (run[key], label)))
-            field[label] = generate_ideal_profiles(file, model_type=key, w_thresh = w_thresh,
+            file = str(os.path.join(dirs[key2], "%s_%s" % (run[key], label)))
+            field[label] = generate_ideal_profiles(file, model_type=key2, w_thresh = w_thresh,
                                                    cref_thresh = cref_thresh, min_pix=min_pix,
                                                    percentile=percent, zhgts = zhgts)
 
-    with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
+    with open('%s/%s_%s_%s.pkl' % (profile_dir, key2, run[key], plabel), 'wb') as handle:
         pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     print("\n Squall_profiles wrote pickled file:  %s out!\n" % ('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel)))

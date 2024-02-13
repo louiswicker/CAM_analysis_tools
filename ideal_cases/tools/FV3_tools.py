@@ -7,6 +7,8 @@ import os as os
 import glob
 import sys as sys
 
+from numpy.fft import fftn, ifftn, fftfreq
+
 from tools.cbook import write_Z_profile, compute_dbz
 
 import warnings
@@ -72,10 +74,20 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
         ds = xr.load_dataset(os.path.join(path, file_pattern), decode_times=False)
         
     if vars != ['']:
-        variables = vars
+
+        if vars[0] == '+':
+            newlist = []
+            for var in vars[1:]:
+                newlist.append(var)
+
+            variables = list(set(default_var_map + newlist))
+
+        else:
+            variables = vars
+
     else:
         variables = default_var_map
-        
+ 
     # storage bin
 
     dsout = {}
@@ -116,7 +128,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
         if key == 'pert_th': 
             pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             theta    = ds.theta.values[:,::-1,:,:]
-            base_th  = theta[0,:,-1,-1]/pii[0,:,-1,-1]
+            base_th  = theta[0,:,-1,-1]
             dsout['pert_th'] = theta - np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
 
         if key == 'buoy':
@@ -158,16 +170,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
-          # ptop       = ds.phalf[0]
-          # phalf      = ds.phalf[1:]
-          # pfull      = (ds.delp.sum(dim='pfull') + ptop).values[:,::-1,:,:]
-          # pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-          # p_from_qv  = ((ds.spfh)*ds.delp).sum(dim='pfull').values[:,::-1,:,:]
-          # p_from_qp  = ds.qp.sum(dim='pfull').values[:,::-1,:,:]
+            ptop       = ds.phalf[0]
+            phalf      = ds.phalf[1:]
+            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values[:,::-1,:,:]
+            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:]
+            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values[:,::-1,:,:]  \
+                       + ds.clwmr.cumsum(dim='pfull').values[:,::-1,:,:]
             
-          # dsout['pert_p']  = pfull - pfull_ref - p_from_qv - p_from_qp            
-            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values
-            dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
+            dsout['pert_p']  = pfull - pfull_ref - (p_from_qv - p_from_qp)            
+          # dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values
+          # dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
@@ -196,6 +209,43 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
                 dsout['accum_prec'] = ds.rain_k.values[:,:,:]  # original name
             except:
                 dsout['accum_prec'] = ds.accumulated_rain.values[:,:,:] # new name
+
+        if key == 'div2d':
+            print(" -->Computing finite difference 2D divergence\n")
+            u = ds.ugrd.values[:,::-1,:,:]
+            v = ds.vgrd.values[:,::-1,:,:]
+            dudx = np.gradient(u, axis=3)
+            dvdy = np.gradient(v, axis=2)
+            dsout['div2d'] = dudx + dvdy
+
+        if key == 'fft_div2d':
+
+            print(" -->Computing FFT 2D divergence\n")
+
+            x1 = ds.grid_xt.values
+            y1 = ds.grid_yt.values
+            Nx = x1.shape[0]
+            Ny = y1.shape[0]
+
+            if Nx != Ny:
+                print("\n Warning, Nx != Ny, not sure if fft works!....\n")
+
+            kx = np.fft.fftfreq(Nx) * 2*np.pi * Nx / (x1[-1] - x1[0])
+            ky = np.fft.fftfreq(Ny) * 2*np.pi * Ny / (y1[-1] - y1[0])
+            Kx, Ky  = np.meshgrid(kx, ky, indexing='ij')
+
+            u  = ds.ugrd.values[:,::-1,:,:]
+            v  = ds.vgrd.values[:,::-1,:,:]
+
+            div2d = np.zeros_like(u)
+
+            for n in np.arange(u.shape[0]):
+                for k in np.arange(u.shape[1]):
+                    div2d[n,k] = ifftn(1j * Kx * fftn(u[n,k])) \
+                               + ifftn(1j * Ky * fftn(v[n,k]))
+
+            dsout['fft_2d_div'] = np.real(div2d)
+
 
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
