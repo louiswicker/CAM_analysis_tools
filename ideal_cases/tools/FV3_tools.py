@@ -179,7 +179,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds
                        + ds.clwmr.cumsum(dim='pfull').values[:,::-1,:,:]
             
             dsout['pert_p']  = pfull - pfull_ref - (p_from_qv - p_from_qp)            
-          # dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values
+            pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
+            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values - pfull_ref
           # dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
 
         if key == 'base_p':
