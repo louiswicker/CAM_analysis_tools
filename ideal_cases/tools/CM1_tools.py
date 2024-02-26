@@ -43,6 +43,49 @@ default_var_map = [
                    'theta',    
                    'pert_th',   
                    ]
+
+#---------------------------------------------------------------------
+def interp_z(data, zin, zout):
+
+    import time
+
+    debug = True
+
+    start = time.time()
+
+    ndim = data.ndim
+    cdim = zin.ndim
+
+    if debug:  print('\n',ndim, cdim)
+
+    if ndim == 1:
+        dinterp = np.interp(zout, zin, data)
+
+    if ndim == 2:
+
+        dinterp = np.zeros((data.shape[0],len(zout)),dtype=np.float32)
+        for t in np.arange(data.shape[0]):
+            dinterp[t,:] = np.interp(zout, zin, data[t,:])
+
+    if ndim == 3: 
+
+        dinterp = np.zeros((len(zout),data.shape[1],data.shape[2]),dtype=np.float32)
+        for i in np.arange(data.shape[2]):
+            for j in np.arange(data.shape[1]):
+                dinterp[:,j,i] = np.interp(zout, zin, data[:,j,i])
+
+    if ndim == 4:
+
+        dinterp = np.zeros((data.shape[0],len(zout),data.shape[2],data.shape[3]),dtype=np.float32)
+        for t in np.arange(data.shape[0]):
+            for j in np.arange(data.shape[2]):
+                for i in np.arange(data.shape[3]):
+                    dinterp[t,:,j,i] = np.interp(zout, zin, data[t,:,j,i])
+
+    if debug:  print("\n Total time taken for interpolation: ", time.time() - start) 
+
+    
+    return dinterp
                    
 #--------------------------------------------------------------------------------------------------
 def open_mfdataset_list(data_dir, pattern):
