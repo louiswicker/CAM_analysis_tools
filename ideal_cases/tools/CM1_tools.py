@@ -64,23 +64,35 @@ def interp_z(data, zin, zout):
     if ndim == 2:
 
         dinterp = np.zeros((data.shape[0],len(zout)),dtype=np.float32)
+
+        if cdim < ndim:
+            z2d = np.broadcast_to(zin[np.newaxis, :], data.shape)
+
         for t in np.arange(data.shape[0]):
-            dinterp[t,:] = np.interp(zout, zin, data[t,:])
+            dinterp[t,:] = np.interp(zout, z2d, data[t,:])
 
     if ndim == 3: 
 
         dinterp = np.zeros((len(zout),data.shape[1],data.shape[2]),dtype=np.float32)
+
+        if cdim < ndim:
+            z3d = np.broadcast_to(zin[:, np.newaxis, np.newaxis], data.shape)
+
         for i in np.arange(data.shape[2]):
             for j in np.arange(data.shape[1]):
-                dinterp[:,j,i] = np.interp(zout, zin, data[:,j,i])
+                dinterp[:,j,i] = np.interp(zout, z3d[:,j,i], data[:,j,i])
 
     if ndim == 4:
 
         dinterp = np.zeros((data.shape[0],len(zout),data.shape[2],data.shape[3]),dtype=np.float32)
+
+        if cdim < ndim:
+            z4d = np.broadcast_to(zin[np.newaxis, :, np.newaxis, np.newaxis], data.shape)
+
         for t in np.arange(data.shape[0]):
             for j in np.arange(data.shape[2]):
                 for i in np.arange(data.shape[3]):
-                    dinterp[t,:,j,i] = np.interp(zout, zin, data[t,:,j,i])
+                    dinterp[t,:,j,i] = np.interp(zout, z4d[t,:,j,i], data[t,:,j,i])
 
     if debug:  print("\n Total time taken for interpolation: ", time.time() - start) 
 

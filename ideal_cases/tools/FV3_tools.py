@@ -51,7 +51,8 @@ default_var_map = [
 # READ SOLO FIELDS
 #
 
-def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, ret_ds=False, unit_test=False):
+def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
+                     ret_ds=False, interpZ=False, unit_test=False):
         
     if file_pattern == None:
     

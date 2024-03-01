@@ -5,8 +5,7 @@ import os as os
 import glob
 import sys as sys
 import pickle
-
-#from cmpref import cmpref_mod as cmpref
+import time
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -143,33 +142,73 @@ def compute_dbz(state, version=2):
 
 #
 #--------------------------------------------------------------------------------------------------
- 
-#--------------------------------------------------------------------------------------------------
-#
+def interp_z(data, zin, zout):
+    """
+    """
 
-def print_sounding(state, level=False, vars = ['hgt', 'theta', 'qv', 'u', 'v']):
+    debug = False
 
-    for k in np.arange(state['theta'].shape[1]):
-        if level:
-                
-            print("%3.3i  %.3f  %.3f  %.3f  %.3f  %.3f"%(k,
-                                                        state['hgt'][0,k,0,0], 
-                                                        state['theta'][0,k,0,0], 
-                                                        state['qv'][0,k,0,0]*1000.,
-                                                        state['u'][0,k,0,0], 
-                                                        state['v'][0,k,0,0]))
+    start = time.time()
 
-        
+    ndim = data.ndim
+    cdim = zin.ndim
+
+    if debug:  
+        print("\n Data shape: ", data.shape, " Z shape:  ", zin.shape)
+
+    if ndim == 1:
+        dinterp = np.interp(zout, zin, data)
+
+    if ndim == 2:
+
+        if cdim == 1:
+            zND = np.broadcast_to(zin[:,np.newaxis], data.shape)
+        elif cdim == ndim:
+            zND = zin
         else:
-        
-            print("%.3f  %.3f  %.3f  %.3f  %.3f" % (state['hgt'][0,k,0,0], 
-                                                    state['theta'][0,k,0,0], 
-                                                    state['qv'][0,k,0,0]*1000.,
-                                                    state['u'][0,k,0,0], 
-                                                    state['v'][0,k,0,0]))
+            print("--> INTERP_Z input z array must be 1D or same DIM as data array\n")
+            return None
 
-#
-#--------------------------------------------------------------------------------------------------
+        dinterp = np.zeros((len(zout),data.shape[1]),dtype=np.float32)
+
+        for t in np.arange(data.shape[1]):
+            dinterp[:,t] = np.interp(zout, zND[:,t], data[:,t])
+        if debug:  print(dinterp.shape)
+
+    if ndim == 3:
+
+        if cdim == 1:
+            zND = np.broadcast_to(zin[:, np.newaxis, np.newaxis], data.shape)
+        elif cdim == ndim:
+            zND = zin
+        else:
+            print("--> INTERP_Z input z array must be 1D or same DIM as data array\n")
+
+        dinterp = np.zeros((len(zout),data.shape[1],data.shape[2]),dtype=np.float32)
+
+        for i in np.arange(data.shape[2]):
+            for j in np.arange(data.shape[1]):
+                dinterp[:,j,i] = np.interp(zout, zND[:,j,i], data[:,j,i])
+
+    if ndim == 4:
+
+        if cdim == 1:
+            zND = np.broadcast_to(zin[np.newaxis, :, np.newaxis, np.newaxis], data.shape)
+        elif cdim == ndim:
+            zND = zin
+        else:
+            print("--> INTERP_Z input z array must be 1D or same DIM as data array\n")
+
+        dinterp = np.zeros((data.shape[0],len(zout),data.shape[2],data.shape[3]),dtype=np.float32)
+
+        for t in np.arange(data.shape[0]):
+            for j in np.arange(data.shape[2]):
+                for i in np.arange(data.shape[3]):
+                    dinterp[t,:,j,i] = np.interp(zout, zND[t,:,j,i], data[t,:,j,i])
+
+    if debug:  print("\n Total time taken for interpolation: ", time.time() - start)
+
+    return dinterp
         
         
 #--------------------------------------------------------------------------------------------------

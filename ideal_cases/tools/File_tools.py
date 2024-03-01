@@ -1072,24 +1072,10 @@ def compute_obj_profiles(W, DBZ, PRES, Z, w_thresh = 3.0, cref_thresh = 45., min
 
         dinterp = np.zeros((len(z1d),data.shape[1]),dtype=np.float32)
 
-        if nthreads < 0:  # turning this off for now.
-            def worker(j):
-                print("running %d %s" % (i, data.shape))
-                dinterp[:,j] = np.interp(z1d, z3d[:,j], data[:,j])
+        for j in np.arange(data.shape[1]):
+            dinterp[:,j] = np.interp(z1d, z3d[:,j], data[:,j])
 
-            pool = mp.Pool(nthreads)
-            for i in np.arange(data.shape[2]):
-                pool.apply_async(worker, args = (i, ))
-            pool.close()
-            pool.join()
-
-            return dinterp
-
-        else:        
-            for j in np.arange(data.shape[1]):
-                dinterp[:,j] = np.interp(z1d, z3d[:,j], data[:,j])
-
-            return dinterp
+        return dinterp
    
     # thanks to Larissa Reames for suggestions on how to do this (and figuring out what to do!)
     
