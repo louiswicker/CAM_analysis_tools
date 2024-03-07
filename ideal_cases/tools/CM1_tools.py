@@ -44,6 +44,7 @@ default_var_map = [
                    'pert_th',   
                    'thetae',
                    'buoy',
+                   'dwdt',
                    ]
 
 #---------------------------------------------------------------------
@@ -248,8 +249,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         if key == 'pii':
             dsout['pii'] = (ds.prs.values / 100000.)**0.286
 
-        if key == 'dpdz':
-            dsout['dpdz'] = ds.wbuoy.values 
+        if key == 'dwdt':
+            dsout['dwdt'] = ds.wb_pgrad.values + ds.wb_buoy.values
 
         if key == 'accum_prec':
             dsout['accum_prec'] = 10.*ds.rain.values  # convert CM to MM

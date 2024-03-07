@@ -44,7 +44,7 @@ default_var_map = [
                    'theta',    
                    'pert_th',   
                    'buoy',
-                   'buoy2',
+                   'dwdt',
                    'thetae',
                    ]
 
@@ -153,13 +153,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['buoy'] = 9.806*(pert_th/base_th + 0.61*pert_qv \
                           - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
-        if key == 'buoy2':
-          # qv       = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
-            dpstar         = ds.delp.values[:,::-1,:,:]
-            pnh            = ds.pnhpres.values[:,::-1,:,:]
-            dpnh           = np.zeros_like(pnh)
-            dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
-            dsout['buoy2'] = -9.806*(dpnh / dpstar)
+        if key == 'dwdt':
+            try:
+                dsout['dwdt']   = ds.wforcn[:,::-1,:,:]
+            except:
+                dpstar           = ds.delp.values[:,::-1,:,:]
+                pnh              = ds.pnhpres.values[:,::-1,:,:]
+                dpnh             = np.zeros_like(pnh)
+                dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
+                dsout['dwdt']   = -9.806*(dpnh / dpstar)
 
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
