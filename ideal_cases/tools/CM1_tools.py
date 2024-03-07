@@ -7,7 +7,7 @@ import sys as sys
 
 from numpy.fft import fft2, ifft2, fftfreq
 
-from tools.cbook import write_Z_profile, compute_dbz
+from tools.cbook import write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -42,6 +42,8 @@ default_var_map = [
                    'accum_prec',
                    'theta',    
                    'pert_th',   
+                   'thetae',
+                   'buoy',
                    ]
 
 #---------------------------------------------------------------------
@@ -173,6 +175,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         else:
             variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
 
+# Add two time variables
+
+    dsout['sec'] = ds.time.values[:]
+    dsout['min'] = ds.time.values[:]/60.
+
     for key in variables:
 
         if key == 'theta': 
@@ -302,7 +309,16 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
             dsout['fft_2d_div'] = div2d.real
 
+        if key == 'thetae':
+            print(" -->Computing ThetaE \n")
             
+            dsout['qv'] = ds.qv.values 
+            pii  = (ds.prs.values / 100000.)**0.286
+            dsout['temp'] = ds.th.values*pii
+            dsout['pres'] = ds.prs.values
+
+            dsout['thetae'] = compute_thetae(dsout)
+
     if unit_test:
         write_Z_profile(dsout, model='CM1', vars=variables, loc=(10,-1,1))
 

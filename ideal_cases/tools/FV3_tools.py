@@ -9,7 +9,7 @@ import sys as sys
 
 from numpy.fft import fftn, ifftn, fftfreq
 
-from tools.cbook import write_Z_profile, compute_dbz
+from tools.cbook import write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -45,6 +45,7 @@ default_var_map = [
                    'pert_th',   
                    'buoy',
                    'buoy2',
+                   'thetae',
                    ]
 
 #--------------------------------------------------------------------------------------------------
@@ -112,6 +113,11 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             
         else:
             variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
+
+# Add two time variables
+
+    dsout['sec'] = ds.time.values[:]
+    dsout['min'] = ds.time.values[:]/60.
                         
     for key in variables:
 
@@ -259,6 +265,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
             dsout['fft_2d_div'] = np.real(div2d)
 
+        if key == 'thetae':
+            print(" -->Computing ThetaE \n")
+
+            dsout['qv'] = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            pii           = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            dsout['temp'] = pii*ds.theta.values[:,::-1,:,:]
+            dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
+
+            dsout['thetae'] = compute_thetae(dsout)
 
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))

@@ -6,6 +6,7 @@ import glob
 import sys as sys
 import pickle
 import time
+import traceback
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -213,7 +214,7 @@ def interp_z(data, zin, zout):
 #--------------------------------------------------------------------------------------------------
 #
 
-def compute_thetae(state):
+def compute_thetae(state, Pres=None, Temp=None, Qv=None):
 
     cappa_b = 0.2854
     cv_air  = 717.
@@ -224,24 +225,56 @@ def compute_thetae(state):
     zvir    = rv_gas/rd_gas - 1.
     cv_vap  = cp_vapor - rv_gas
 
-    try:
-        p_mb    = state['pres'] / 100.
-    except KeyError:
-        print("\n ==> Need pressure field in state vector")
+# Check to see if things are passed correctly
 
-    try:
-        temp    = state['temp']
-    except KeyError:
-        print("\n ==> Need temperature field in state vector")
+    if isinstance(state, dict):
 
-    try:
-        qv      = state['qv']
-    except KeyError:
-        print("\n ==> Need qv field in state vector")
+        try:
+            p_mb = state['pres'] / 100.
+        except:
+            print("\n ==> Need pressure field in state vector")
+            traceback.print_exc()
+            raise
 
-    # print(p_mb[0,:,0,0])
-    # print(theta[0,:,0,0])
-    
+        try:
+            temp = state['temp']
+        except:
+            print("\n ==> Need temperature field in state vector")
+            traceback.print_exc()
+            raise
+
+        try:
+            qv = state['qv']
+        except:
+            print("\n ==> Need qv field in state vector")
+            traceback.print_exc()
+            raise
+
+    else:
+
+        try:
+            p_mb = Pres/100.
+        except:
+            print("\n ==> Need pressure passed explicitly")
+            traceback.print_exc()
+            raise
+        
+        try:
+            temp = Temp
+        except:
+            print("\n ==> Need Temp passed explicitly")
+            traceback.print_exc()
+            raise
+
+        try:
+            qv = Qv
+        except:
+            print("\n ==> Need QV passed explicitly")
+            traceback.print_exc()
+            raise
+
+# Begin calc
+        
     r       = np.where(qv > 1.0e-10, qv, 1.0e-10)
     e       = p_mb*r/(622.+r)
 
@@ -249,13 +282,11 @@ def compute_thetae(state):
     
     tlcl    = 2840./(3.5*np.log(temp)-np.log(e)-4.805)+55.
 
-    # print(tlcl[0,:,0,0])
-
     thetae = temp*( (1000.0/p_mb)**(cappa_b*(1.0-0.28*r)) ) * np.exp( ((3376.0/tlcl)-2.54)*r*(1.0+0.81*r) )
 
+# End calc
 
     return thetae
-        
         
 #--------------------------------------------------------------------------------------------------
 #
