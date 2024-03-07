@@ -29,12 +29,11 @@ _grav       = 9.806
 _default_file = "atmos_hifreq.nc"
 
 default_var_map = [        
-                   'temp',   
                    'hgt',  
+                   'temp',
                    'w',     
                    'u',    
                    'v',   
-                   'vvort', 
                    'qv',     
                    'qc',    
                    'qr',     
@@ -44,6 +43,8 @@ default_var_map = [
                    'accum_prec',
                    'theta',    
                    'pert_th',   
+                   'buoy',
+                   'buoy2',
                    ]
 
 #--------------------------------------------------------------------------------------------------
@@ -124,7 +125,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'pert_t': 
             pii    = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             base_t = pii[0,:,-1,-1] * ds.theta.values[0,::-1,-1,-1]
-            dsout['pert_t'] = pii*ds.theta.values[:,::-1,:,:] - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.theta.shape) 
+            dsout['pert_t'] = pii*ds.theta.values[:,::-1,:,:] \
+                            - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.theta.shape) 
             
         if key == 'pert_th': 
             pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
@@ -145,6 +147,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['buoy'] = 9.806*(pert_th/base_th + 0.61*pert_qv \
                           - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
+        if key == 'buoy2':
+          # qv       = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            dpstar         = ds.delp.values[:,::-1,:,:]
+            pnh            = ds.pnhpres.values[:,::-1,:,:]
+            dpnh           = np.zeros_like(pnh)
+            dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
+            dsout['buoy2'] = -9.806*(dpnh / dpstar)
+
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
 
@@ -166,6 +176,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['hgt'] = np.zeros_like(ze)
             dsout['hgt'][:,0,:,:]  = 0.5*ze[:,0,:,:]
             dsout['hgt'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
+            dsout['ze'] = ze
 
         if key == 'pres':
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]

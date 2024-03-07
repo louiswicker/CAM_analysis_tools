@@ -209,6 +209,52 @@ def interp_z(data, zin, zout):
     if debug:  print("\n Total time taken for interpolation: ", time.time() - start)
 
     return dinterp
+
+#--------------------------------------------------------------------------------------------------
+#
+
+def compute_thetae(state):
+
+    cappa_b = 0.2854
+    cv_air  = 717.
+    cp_air  = 1005.
+    cp_vapor= 1875.
+    rv_gas  = 461.
+    rd_gas  = 287.
+    zvir    = rv_gas/rd_gas - 1.
+    cv_vap  = cp_vapor - rv_gas
+
+    try:
+        p_mb    = state['pres'] / 100.
+    except KeyError:
+        print("\n ==> Need pressure field in state vector")
+
+    try:
+        temp    = state['temp']
+    except KeyError:
+        print("\n ==> Need temperature field in state vector")
+
+    try:
+        qv      = state['qv']
+    except KeyError:
+        print("\n ==> Need qv field in state vector")
+
+    # print(p_mb[0,:,0,0])
+    # print(theta[0,:,0,0])
+    
+    r       = np.where(qv > 1.0e-10, qv, 1.0e-10)
+    e       = p_mb*r/(622.+r)
+
+    # print(e[0,:,0,0])
+    
+    tlcl    = 2840./(3.5*np.log(temp)-np.log(e)-4.805)+55.
+
+    # print(tlcl[0,:,0,0])
+
+    thetae = temp*( (1000.0/p_mb)**(cappa_b*(1.0-0.28*r)) ) * np.exp( ((3376.0/tlcl)-2.54)*r*(1.0+0.81*r) )
+
+
+    return thetae
         
         
 #--------------------------------------------------------------------------------------------------

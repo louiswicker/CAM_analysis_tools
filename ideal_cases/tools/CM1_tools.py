@@ -36,7 +36,7 @@ default_var_map = [
                    'qv',     
                    'qc',    
                    'qr',     
-                   'press',   
+                   'pres',   
                    'pert_p',   
                    'pii',     
                    'accum_prec',
