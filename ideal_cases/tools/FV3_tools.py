@@ -118,6 +118,9 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
     dsout['sec'] = ds.time.values[:]
     dsout['min'] = ds.time.values[:]/60.
+
+    dsout['xc'] = ds.grid_xt.values
+    dsout['yc'] = ds.grid_yt.values
                         
     for key in variables:
 
@@ -181,9 +184,9 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         if key == 'hgt': 
             ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
-            dsout['hgt'] = np.zeros_like(ze)
-            dsout['hgt'][:,0,:,:]  = 0.5*ze[:,0,:,:]
-            dsout['hgt'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
+            dsout['zc'] = np.zeros_like(ze)
+            dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
+            dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
             dsout['ze'] = ze
 
         if key == 'pres':

@@ -181,6 +181,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     dsout['sec'] = ds.time.values[:]
     dsout['min'] = ds.time.values[:]/60.
 
+# Add some spatial info
+
+    dsout['xc'] = ds.xh.values
+    dsout['yc'] = ds.yh.values
+
     for key in variables:
 
         if key == 'theta': 
@@ -204,21 +209,23 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pert_t'] = temp - base_t0
  
         if key == 'u': 
-            u      = ds.u.values
-            dsout['u'] = 0.5*(u[:,:,:,1:] + u[:,:,:,:-1])
+            dsout['u'] = 0.5*(ds.u[:,:,:,1:] + ds.u[:,:,:,:-1]).values
 
         if key == 'v': 
-            v      = ds.v.values
-            dsout['v'] = 0.5*(v[:,:,1:,:] + v[:,:,:-1,:])
+            dsout['v'] = 0.5*(ds.v[:,:,1:,:] + ds.v[:,:,:-1,:]).values
 
         if key == 'w': 
-            dsout['w'] = ds.winterp.values
+            try:
+                dsout['w'] = ds.winterp.values
+            except:
+                dsout['w'] = 0.5*(ds.w[:,1:,:,:] + w[:,:-1,:,:]).values
 
         if key == 'vvort': 
             dsout['vvort'] = np.zeros_like(ds.thpert.values)
 
         if key == 'hgt': 
-            dsout['hgt']   = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.winterp.shape)
+            dsout['zc']   = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.winterp.shape)
+            dsout['ze']   = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
 
         if key == 'pres':
             dsout['pres'] = ds.prs.values
@@ -250,7 +257,12 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pii'] = (ds.prs.values / 100000.)**0.286
 
         if key == 'dwdt':
-            dsout['dwdt'] = ds.wb_pgrad.values + ds.wb_buoy.values
+            tmp             = ds.wb_pgrad.values + ds.wb_buoy.values
+            dsout['dwdt']   = 0.5*(tmp[:,1:,:,:] + tmp[:,:-1,:,:])
+            try:
+                dsout['pgradb'] = ds.pgradb.values
+            except:
+                print(" -->Could not find buoyant pressure gradient decomp\n")
 
         if key == 'accum_prec':
             dsout['accum_prec'] = 10.*ds.rain.values  # convert CM to MM
@@ -313,8 +325,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         if key == 'thetae':
             print(" -->Computing ThetaE \n")
             
-            dsout['qv'] = ds.qv.values 
-            pii  = (ds.prs.values / 100000.)**0.286
+            dsout['qv']   = ds.qv.values 
+            pii           = (ds.prs.values / 100000.)**0.286
             dsout['temp'] = ds.th.values*pii
             dsout['pres'] = ds.prs.values
 
