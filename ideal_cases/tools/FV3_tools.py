@@ -120,8 +120,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     dsout['sec'] = ds.time.values[:]
     dsout['min'] = ds.time.values[:]/60.
 
+# Always add coordinates to data structure
+
     dsout['xc'] = ds.grid_xt.values
     dsout['yc'] = ds.grid_yt.values
+
+    ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
+
+    dsout['zc'] = np.zeros_like(ze)
+    dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
+    dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
+    dsout['ze'] = ze
                         
     for key in variables:
 
@@ -194,13 +203,6 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'vvort': 
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
 
-        if key == 'hgt' or key =='zc' or key == 'z': 
-            ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
-            dsout['zc'] = np.zeros_like(ze)
-            dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
-            dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
-            dsout['ze'] = ze
-
         if key == 'pres':
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
@@ -235,8 +237,10 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['qr'] = ds.rwmr.values[:,::-1,:,:]
 
         if key == 'den':
-            pii          = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            dsout['den'] = ds.press.values[:,::-1,:,:] / (_Rgas * pii*ds.theta.values[:,::-1,:,:])
+            ptop         = ds.phalf[0]
+            pfull        = (ds.delp.cumsum(dim='pfull') + ptop).values
+            dsout['den'] = pfull[:,::-1,:,:] / (_Rgas * ds.temp.values[:,::-1,:,:])
+            dsout['row'] = ds.delp.values[:,::-1,:,:]/(9.806*ds.delz.values[:,::-1,:,:])
 
         if key == 'pii':
             dsout['pii'] = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286

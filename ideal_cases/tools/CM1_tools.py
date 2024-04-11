@@ -183,8 +183,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
 # Add some spatial info
 
-    dsout['xc'] = ds.xh.values
-    dsout['yc'] = ds.yh.values
+    dsout['xc'] = 1000*ds.xh.values
+    dsout['yc'] = 1000*ds.yh.values
     dsout['zc'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
     dsout['ze'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
 
