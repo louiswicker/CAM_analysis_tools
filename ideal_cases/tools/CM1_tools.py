@@ -185,6 +185,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
     dsout['xc'] = ds.xh.values
     dsout['yc'] = ds.yh.values
+    dsout['zc'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
+    dsout['ze'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
 
     for key in variables:
 
@@ -199,7 +201,6 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             qv0 = np.broadcast_to(qv0[np.newaxis, :, np.newaxis, np.newaxis], ds.qv.shape)
             dsout['buoy'] = 9.806*(ds.thpert.values/ds.th0.values + 0.61*(ds.qv.values-qv0) \
                           - ds.qc.values - ds.qr.values)
-
         if key == 'pert_t':
             base_pii = ds.pi0.values  
             base_th0 = ds.th0.values
@@ -223,10 +224,6 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         if key == 'vvort': 
             dsout['vvort'] = np.zeros_like(ds.thpert.values)
 
-        if key == 'hgt': 
-            dsout['zc']   = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.winterp.shape)
-            dsout['ze']   = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
-
         if key == 'pres':
             dsout['pres'] = ds.prs.values
 
@@ -246,6 +243,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['qr'] = ds.qr.values
 
         if key == 'den':
+            pii  = (ds.prs.values / 100000.)**0.286
+            dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*pii)
+            dsout['row'] = ds.prs.values / (_Rgas*ds.th.values*pii)
+            
+        if key == 'row':
             pii  = (ds.prs.values / 100000.)**0.286
             dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*pii)
             

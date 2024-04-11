@@ -29,7 +29,8 @@ _grav       = 9.806
 _default_file = "atmos_hifreq.nc"
 
 default_var_map = [        
-                   'hgt',  
+                   'zc',  
+                   'dpstar',
                    'temp',
                    'w',     
                    'u',    
@@ -44,7 +45,7 @@ default_var_map = [
                    'theta',    
                    'pert_th',   
                    'buoy',
-                   'dwdt',
+                   'ppedge',
                    'thetae',
                    ]
 
@@ -149,13 +150,24 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             base_th  = theta[0,:,-1,-1]
             base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_th  = theta - base_th
-            qv       = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            qv      = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
             dsout['buoy'] = 9.806*(pert_th/base_th + 0.61*pert_qv \
                           - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
+        if key == 'dpstar':
+            dsout['dpstar'] = ds.delp.values[:,::-1,:,:]
+
+        if key == 'ppedge':
+            try:
+                tmp             = ds.wforcn[:,::-1,:,:].values
+                dsout['ppedge'] = np.zeros((tmp.shape[0], tmp.shape[1]+1, tmp.shape[2], tmp.shape[3]))
+                dsout['ppedge'][:,:-1,:,:] = tmp
+            except:
+                dsout['ppedge'] = np.zeros_like(ds.nhpres)
+
         if key == 'dwdt':
             try:
                 dsout['dwdt']   = ds.wforcn[:,::-1,:,:]
@@ -182,7 +194,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'vvort': 
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
 
-        if key == 'hgt': 
+        if key == 'hgt' or key =='zc' or key == 'z': 
             ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
             dsout['zc'] = np.zeros_like(ze)
             dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
@@ -195,13 +207,13 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'pert_p':    # code from L Harris Jupyter notebook
             ptop       = ds.phalf[0]
             phalf      = ds.phalf[1:]
-            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values[:,::-1,:,:]
+            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
             pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:]
-            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values[:,::-1,:,:]  \
-                       + ds.clwmr.cumsum(dim='pfull').values[:,::-1,:,:]
+            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values
+            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
+                       + ds.clwmr.cumsum(dim='pfull').values
             
-            dsout['pert_p']  = pfull - pfull_ref - (p_from_qv - p_from_qp)            
+            dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
             pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
             dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values - pfull_ref
           # dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
@@ -214,6 +226,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         if key == 'qv':
             dsout['qv'] = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+
 
         if key == 'qc':
             dsout['qc'] = ds.clwmr.values[:,::-1,:,:]
