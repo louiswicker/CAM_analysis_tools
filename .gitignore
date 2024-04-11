@@ -8,3 +8,6 @@
 input_sounding*
 */*.so
 **/*.pkl
+*.nc
+*/*.nc
+*__py*
