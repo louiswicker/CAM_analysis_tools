@@ -1370,6 +1370,83 @@ def getobjdata(run_dir, model_type='wrf', filename=None):
         ds.close()
 
         return {'z': z, 'w': w, 'pres': pres, 'dbz':dbz}
+
+
+
+#-------------------------------------------------------------------------------
+
+def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
+
+    debug = True
+    
+    try: ncfile.close()  # just to be safe, make sure dataset is not already open.
+    except: pass
+
+    ncfile = ncdf.Dataset(filename,mode='w',format='NETCDF4_CLASSIC') 
+
+    # Write the boundary condition flags and source model as global attributes
+
+    ncfile.wbc   = boundary_conditions[0]
+    ncfile.ebc   = boundary_conditions[1]    
+    ncfile.sbc   = boundary_conditions[2]
+    ncfile.nbc   = boundary_conditions[3]
+    ncfile.model = source
+
+    #print(ncfile)
+
+    x_dim = ncfile.createDimension('nx', model['xc'].size)     
+    y_dim = ncfile.createDimension('ny', model['yc'].size)   
+    z_dim = ncfile.createDimension('nz', model['zc'].shape[1]) 
+    t_dim = ncfile.createDimension('time', None)
+    
+    # for dim in ncfile.dimensions.items():
+    #     print(dim)
+        
+    x = ncfile.createVariable('xh', np.float32, ('nx',))
+    x.units = 'meters'
+    
+    y = ncfile.createVariable('yh', np.float32, ('ny',))
+    y.units = 'meters'
+    
+    z = ncfile.createVariable('zh', np.float32, ('time','nz','ny','nx'))
+    z.units = 'meters'
+    
+    t = ncfile.createVariable('time', np.float32, ('time',))
+    t.units = 'sec'
+    
+    den = ncfile.createVariable('den', np.float32, ('time','nz','ny','nx'))
+    den.units = 'kg/m^3'
+    
+    # write coordinates and data
+    
+    x[:] = model['xc'][:]
+    y[:] = model['yc'][:]
+    t[:] = model['sec'][:]
+    
+    for n in np.arange(model['den'].shape[0]):
+    
+        den[n,:,:,:] = model['den'][n,:,:,:]
+        z[n,:,:,:]   = model['zc'][n,:,:,:]
+    
+    # print(ncfile)
+    ncfile.close()
+
+# if debug, make sure file is written
+
+    if debug:
+        print('\n ------DEBUG WRITE FORCING---------\n')
+        try: ncfile.close()  # just to be safe, make sure dataset is not already open.
+        except: pass
+        ncfile = ncdf.Dataset(filename,mode='r') 
+        print(ncfile, '\n')
+        print('\nGRID DIMENSIONS\n',ncfile.variables['den'].shape)
+        print('\nTIME\n',ncfile.variables['time'][:])
+        print('\nXH\n',ncfile.variables['xh'][:])
+        print('\nYH\n',ncfile.variables['yh'][:])
+        print('\nZH\n',ncfile.variables['zh'][0,:,0,0])
+        den = ncfile.variables['den']
+        print('\nDENSITY COLUMN\n',den[0,:,0,0])
+        ncfile.close()
     
     
     
