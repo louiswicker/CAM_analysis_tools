@@ -24,7 +24,6 @@ warnings.filterwarnings("ignore")
 _nthreads = 2
 
 _Rgas       = 287.04
-_gravity    = 9.806
 _grav       = 9.806
 _default_file = "atmos_hifreq.nc"
 
@@ -55,7 +54,7 @@ default_var_map = [
 #
 
 def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
-                     ret_ds=False, interpZ=False, unit_test=False):
+                     ret_ds=False, ret_beta=False, interpZ=False, unit_test=False):
         
     if file_pattern == None:
     
@@ -122,8 +121,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
 # Always add coordinates to data structure
 
-    dsout['xc'] = ds.grid_xt.values
-    dsout['yc'] = ds.grid_yt.values
+    dsout['xc'] = ds.grid_xt.values * 3000.
+    dsout['yc'] = ds.grid_yt.values * 3000.
 
     ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
 
@@ -163,7 +162,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
-            dsout['buoy'] = 9.806*(pert_th/base_th + 0.61*pert_qv \
+            dsout['buoy'] = _grav*(pert_th/base_th + 0.61*pert_qv \
                           - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
         if key == 'dpstar':
@@ -185,7 +184,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                 pnh              = ds.pnhpres.values[:,::-1,:,:]
                 dpnh             = np.zeros_like(pnh)
                 dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
-                dsout['dwdt']   = -9.806*(dpnh / dpstar)
+                dsout['dwdt']   = -_grav*(dpnh / dpstar)
 
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
@@ -237,10 +236,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['qr'] = ds.rwmr.values[:,::-1,:,:]
 
         if key == 'den':
-            ptop         = ds.phalf[0]
-            pfull        = (ds.delp.cumsum(dim='pfull') + ptop).values
-            dsout['den'] = pfull[:,::-1,:,:] / (_Rgas * ds.temp.values[:,::-1,:,:])
-            dsout['row'] = ds.delp.values[:,::-1,:,:]/(9.806*ds.delz.values[:,::-1,:,:])
+            dsout['den'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
 
         if key == 'pii':
             dsout['pii'] = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
@@ -303,6 +299,11 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     if ret_dbz:
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
+
+    if ret_beta:
+        print(" Reading BETA from %s" % ret_beta)
+        dsbeta = xr.load_dataset(ret_beta, decode_times=False)
+        dsout['beta'] = dsbeta.Soln_Beta.values
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)

@@ -119,7 +119,7 @@ def open_mfdataset_list(data_dir, pattern):
 #
 
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
-                    ret_dbz=False, unit_test=False):
+                    ret_dbz=False, ret_beta=False, unit_test=False):
  
     if file_pattern == None:
         # see if the path has the filename on the end....
@@ -341,6 +341,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         
+    if ret_beta:
+        print(" Reading BETA from %s" % ret_beta)
+        dsbeta = xr.load_dataset(ret_beta, decode_times=False)
+        dsout['beta'] = dsbeta.Soln_Beta.values
+
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)
 

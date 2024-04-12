@@ -15,18 +15,12 @@ from analysis_tools import getobjdata
 
 from colormaps import radar_colormap
 
-#from Plot_tools import *
-from pathlib import Path
-import sys
-path = str(Path(Path('File.py').parent.absolute()).parent.absolute())
-sys.path.insert(0, path)
-
 import pickle
 
 _nthreads = 2
 
 
-# Create data
+# where is data
 
 dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",

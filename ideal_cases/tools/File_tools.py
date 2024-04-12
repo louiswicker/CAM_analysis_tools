@@ -12,9 +12,9 @@ from datetime import datetime
 import cftime
 import pickle
 
-from cmpref import cmpref_mod as cmpref
+#from cmpref import cmpref_mod as cmpref
 
-from CAM_util import dbz_from_q
+#from CAM_util import dbz_from_q
 
 
 import warnings
