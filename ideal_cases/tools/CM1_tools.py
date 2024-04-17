@@ -7,7 +7,7 @@ import sys as sys
 
 from numpy.fft import fft2, ifft2, fftfreq
 
-from tools.cbook import write_Z_profile, compute_dbz, compute_thetae
+from tools.cbook import interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -47,61 +47,6 @@ default_var_map = [
                    'dwdt',
                    ]
 
-#---------------------------------------------------------------------
-def interp_z(data, zin, zout):
-
-    import time
-
-    debug = True
-
-    start = time.time()
-
-    ndim = data.ndim
-    cdim = zin.ndim
-
-    if debug:  print('\n',ndim, cdim)
-
-    if ndim == 1:
-        dinterp = np.interp(zout, zin, data)
-
-    if ndim == 2:
-
-        dinterp = np.zeros((data.shape[0],len(zout)),dtype=np.float32)
-
-        if cdim < ndim:
-            z2d = np.broadcast_to(zin[np.newaxis, :], data.shape)
-
-        for t in np.arange(data.shape[0]):
-            dinterp[t,:] = np.interp(zout, z2d, data[t,:])
-
-    if ndim == 3: 
-
-        dinterp = np.zeros((len(zout),data.shape[1],data.shape[2]),dtype=np.float32)
-
-        if cdim < ndim:
-            z3d = np.broadcast_to(zin[:, np.newaxis, np.newaxis], data.shape)
-
-        for i in np.arange(data.shape[2]):
-            for j in np.arange(data.shape[1]):
-                dinterp[:,j,i] = np.interp(zout, z3d[:,j,i], data[:,j,i])
-
-    if ndim == 4:
-
-        dinterp = np.zeros((data.shape[0],len(zout),data.shape[2],data.shape[3]),dtype=np.float32)
-
-        if cdim < ndim:
-            z4d = np.broadcast_to(zin[np.newaxis, :, np.newaxis, np.newaxis], data.shape)
-
-        for t in np.arange(data.shape[0]):
-            for j in np.arange(data.shape[2]):
-                for i in np.arange(data.shape[3]):
-                    dinterp[t,:,j,i] = np.interp(zout, z4d[t,:,j,i], data[t,:,j,i])
-
-    if debug:  print("\n Total time taken for interpolation: ", time.time() - start) 
-
-    
-    return dinterp
-                   
 #--------------------------------------------------------------------------------------------------
 def open_mfdataset_list(data_dir, pattern):
 
@@ -119,7 +64,7 @@ def open_mfdataset_list(data_dir, pattern):
 #
 
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
-                    ret_dbz=False, ret_beta=False, unit_test=False):
+                    ret_dbz=False, ret_beta=False, zinterp=None, unit_test=False):
  
     if file_pattern == None:
         # see if the path has the filename on the end....
@@ -348,6 +293,26 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)
+
+    if zinterp is None:
+        pass
+    else:
+        print(" Interpolating fields to single column z-grid:  %s \n" % path)
+
+        new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
+        print(new_shape)
+
+        for key in variables:
+            if dsout[key].ndim == dsout['zc'].ndim:
+                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
+                dsout[key] = tmp
+
+        if ret_beta:
+           dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+
+        dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+        print(" Finished interp fields to single column z-grid:  %s \n" % path)
+        print(f'-'*120)
 
     if ret_ds:
         ds.close()

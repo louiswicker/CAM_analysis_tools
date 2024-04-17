@@ -9,7 +9,7 @@ import sys as sys
 
 from numpy.fft import fftn, ifftn, fftfreq
 
-from tools.cbook import write_Z_profile, compute_dbz, compute_thetae
+from tools.cbook import interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -54,7 +54,7 @@ default_var_map = [
 #
 
 def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
-                     ret_ds=False, ret_beta=False, interpZ=False, unit_test=False):
+                     ret_ds=False, ret_beta=False, zinterp=None, unit_test=False):
         
     if file_pattern == None:
     
@@ -307,6 +307,27 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)
+
+    if zinterp is None:
+        pass
+    else:
+        print(" Interpolating fields to single column z-grid:  %s \n" % path)
+
+        new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
+        print(new_shape)
+
+        for key in variables:
+            if dsout[key].ndim == dsout['zc'].ndim:
+                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
+                dsout[key] = tmp
+
+        if ret_beta:
+           dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+
+        dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+
+        print(" Finished interp fields to single column z-grid:  %s \n" % path)
+        print(f'-'*120)
 
     if ret_ds:
         ds.close()
