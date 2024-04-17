@@ -28,7 +28,6 @@ _default_file = "cm1out.nc"
 
 default_var_map = [        
                    'temp',   
-                   'hgt',  
                    'w',     
                    'u',    
                    'v',   
@@ -300,7 +299,6 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         print(" Interpolating fields to single column z-grid:  %s \n" % path)
 
         new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
-        print(new_shape)
 
         for key in variables:
             if dsout[key].ndim == dsout['zc'].ndim:

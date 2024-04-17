@@ -27,8 +27,7 @@ _Rgas       = 287.04
 _grav       = 9.806
 _default_file = "atmos_hifreq.nc"
 
-default_var_map = [        
-                   'zc',  
+default_var_map = [                # do not include coordinates in this list, automatically added.       
                    'dpstar',
                    'temp',
                    'w',     
@@ -217,7 +216,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
             pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
             dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values - pfull_ref
-          # dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values
+            dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
@@ -314,7 +313,6 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         print(" Interpolating fields to single column z-grid:  %s \n" % path)
 
         new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
-        print(new_shape)
 
         for key in variables:
             if dsout[key].ndim == dsout['zc'].ndim:
