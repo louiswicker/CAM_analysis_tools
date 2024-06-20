@@ -1,0 +1,158 @@
+nohup: ignoring input
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_06 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_06/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_06/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_06/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_06/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  23.450432
+
+ CM1 CREF percentile value:  23.450432
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_06 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_06/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_06/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_06/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_06/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  47.585407
+
+ CM1 CREF percentile value:  47.585407
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_12 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_12/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_12/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_12/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_12/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  28.606533
+
+ CM1 CREF percentile value:  28.606533
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_12 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_12/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_12/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_12/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_12/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  48.364693
+
+ CM1 CREF percentile value:  48.364693
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_18 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_18/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_18/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_18/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C2000_18/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  34.536377
+
+ CM1 CREF percentile value:  34.536377
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Processing model run:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_18 
+
+ Processing objects with CREF percentile:  0.990000 
+
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Added default filename to path input:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_18/cm1out.nc
+------------------------------------------------------------------------------------------------------------------------ 
+
+ Reading:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_18/cm1out.nc 
+
+
+ Reading external DBZ file: /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_18/dbz.npz
+
+ Completed reading in:  /work/wicker/climate_runs/cm1r20.3/run/base/squall_3km_C3500_18/cm1out.nc 
+
+------------------------------------------------------------------------------------------------------------------------
+
+ Percentile:  0.990000  Index:  1622016   Value:  48.752522
+
+ CM1 CREF percentile value:  48.752522
+
+ COMPUTE_OBJ_PROFILES: PROBLEM - Input data dictionary is missing key:  hgt
+
+ Squall_profiles wrote pickled file:  ./climate_runs/profiles/cm1_squall_3km_dbz99.pkl out!
+
+Traceback (most recent call last):
+  File "/work/wicker/CAM_analysis_tools/ideal_cases/squall_profiles.py", line 59, in <module>
+    file = str(os.path.join(dirs[key2], "%s_%s" % (run[key], label)))
+KeyError: 'mpa'

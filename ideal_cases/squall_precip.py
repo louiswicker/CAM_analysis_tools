@@ -21,35 +21,28 @@ percent = None
 
 zhgts = 250. + 250.*np.arange(100)
 
+
+# where is data
+
 dirs    = {
-           "solo": "/work/wicker/Odin_scr/solo",
-           "wrf": "/scratch/wicker/WRF_v4.4.2/test/em_quarter_ss",
-           "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
-           "mpas": "/scratch/wicker/MPAS/ideal/squall",
+           "mpas": "/work/wicker/climate_runs/MPAS/ideal/vis01_3rd",
+           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/base",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
           }
 
-profile_dir = "precip"
+profile_dir = "./climate_runs/precip"
 
-run      = {"cm1": "squall_3km_4th"}
-allcape  = ("C2000",)
-allshear = ( "06", )
+allcape = ("C2000", "C3500")
+allshear = ("06", "18")
 
-run      = {"mpas": "squall_3km"}
-
-run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
-run      = {"cm1": "squall_3km_8th"}
-allcape  = ("C2000", "C3500")
-allshear = ( "06", "18" )
-
-run      = {"cm1": "squall_3km_dt10_hdd125", "solo": "squall_3km_dt20_hdd125"}
-run      = {"solo": "squall_3km_dt20_hdd000"}
+run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
+run      = {"mpas": "squall_3km" }
 
 allcape  = ( "C2000", "C3500")
-allshear = ( "06", "18")
+allshear = ( "06", "12", "18" )
 
-plabel = "dbz99"
+plabel = "3rd"
 
-solo  = {}
 cm1   = {}
 wrf   = {}
 mpas  = {}

@@ -136,7 +136,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     dsout['yc'] = 1000*ds.yh.values
     dsout['zc'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
     dsout['ze'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
-    dsout['hgt'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
+    dsout['hgt'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
 
 # Add some base state info - these are full 3D/4D arrays
 

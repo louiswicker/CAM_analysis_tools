@@ -28,8 +28,8 @@ zhgts = 250. + 250.*np.arange(100)
 # where is data
 
 dirs    = {
-           "mpas": "/work/wicker/climate_runs/MPAS/ideal/base",
-           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/base",
+           "mpas": "/work/wicker/climate_runs/MPAS/ideal/vis01_3rd",
+           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/thetaM",
            "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
           }
 
@@ -40,14 +40,17 @@ allshear = ("06", "18")
 
 run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
 
+run      = {"mpas": "squall_3km", "wrf": "squall_3km"}
+run      = {"mpas": "squall_3km" }
+
 allcape  = ( "C2000", "C3500")
 allshear = ( "06", "12", "18" )
 
-plabel = "dbz99"
+plabel = "3rd"
 
 for key in run:
 
-    key2 = key[0:3]
+    key2 = key[0:4]
 
     field = {'w_thres':w_thresh, 'cref_thresh':cref_thresh, 'min_pix': min_pix, 'percentile':percent}
 
