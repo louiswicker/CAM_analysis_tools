@@ -25,37 +25,25 @@ min_pix = 3
 
 zhgts = 250. + 250.*np.arange(100)
 
+# where is data
+
 dirs    = {
-           "solo": "/work/wicker/Odin_scr/solo",
-           "wrf": "/scratch/wicker/WRF_v4.4.2/test/em_quarter_ss",
-           "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
-           "mpas": "/scratch/wicker/MPAS/ideal/squall",
+           "mpas": "/work/wicker/climate_runs/MPAS/ideal/base",
+           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/base",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
           }
 
-profile_dir = "profiles"
+profile_dir = "./climate_runs/profiles"
 
-run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
-run      = {"solo": "squall_1km", "wrf": "squall_1km", "cm1": "squall_1km"}
+allcape = ("C2000", "C3500")
+allshear = ("06", "18")
 
-run      = {"cm1": "squall_3km"}
-run      = {"solo": "squall_3km", "wrf": "squall_3km", "cm1": "squall_3km"}
-
-run      = {"wrf": "squall_3km_3rd"}
-
-run      = {"solo": "squall_3km_hdd03"}
-
-run      = {"solo": "squall_3km_n3", "wrf": "squall_3km_dt10", "cm1": "squall_3km_dt10"}
-run      = {"solo": "squall_3km_dt30_hdd012"}
-
-run      = {"cm1": "squall_3km_dt10_hdd012", "solo": "squall_3km_dt20_hdd012"}
+run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
 
 allcape  = ( "C2000", "C3500")
+allshear = ( "06", "12", "18" )
 
-run      = {"cm1_0": "squall_3km_dt05_hdd012", "cm1_1": "squall_3km_dt05_hdd125", "cm1_2": "squall_3km_dt05_hdd000"}
-allcape  = ( "C2000", "C3500" )
-allshear = ( "06", "18" )
-
-plabel = "dbz99_4th"
+plabel = "dbz99"
 
 for key in run:
 

@@ -295,14 +295,20 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
-    if ret_dbz:
+    if ret_dbz:   
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
 
-    if ret_beta:
+    if ret_beta:   # Beta is a force, divide by density to get accel (density is based on Tv)
+
+        den1d = ds.delp.values[0,::-1,0,0]/(_grav*ds.delz.values[0,::-1,0,0])
+
         print(" Reading BETA from %s" % ret_beta)
+
         dsbeta = xr.load_dataset(ret_beta, decode_times=False)
-        dsout['beta'] = dsbeta.Soln_Beta.values
+
+        den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsbeta.Soln_Beta.shape)
+        dsout['beta'] = dsbeta.Soln_Beta.values / den3d
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)

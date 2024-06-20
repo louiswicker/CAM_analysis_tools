@@ -25,7 +25,7 @@ _retrievebeta = "./retrievebeta.exe"
 # Input directories
 
 dirs    = {
-           "solo": "/work/wicker/Odin_scr/solo",
+       #   "solo": "/work/wicker/Odin_scr/solo",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
           }
 
@@ -35,6 +35,7 @@ allcape = ("C2000", "C3500")
 allshear = ("06", "18")
 
 run      = {"cm1": "bubble_3km_TESTA_hdd125", "solo": "bubble_3km_TESTA_hdd125"}
+run      = {"cm1": "bubble_3km_DENSEOUTPUT_hdd125" }
 
 allcape  = ( "C2000", )
 allshear = ( "00", )

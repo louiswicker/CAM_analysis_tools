@@ -19,12 +19,17 @@ warnings.filterwarnings("ignore")
 #     warnings.simplefilter("ignore")
 #     fxn()
     
-_nthreads = 2
 
-_Rgas         = 287.04
-_gravity      = 9.806
-_grav         = 9.806
 _default_file = "cm1out.nc"
+
+_epsil       = 0.608
+_Rgas        = 287.04
+_rdocp       = 0.286
+_cvor        = 2.751
+_gravity     = 9.806
+_grav        = 9.806
+_p00         = 1.0e5
+_p00_rdocp   = _p00 ** _rdocp
 
 default_var_map = [        
                    'temp',   
@@ -131,6 +136,22 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     dsout['yc'] = 1000*ds.yh.values
     dsout['zc'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
     dsout['ze'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
+    dsout['hgt'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
+
+# Add some base state info - these are full 3D/4D arrays
+
+    dsout['base_pii'] = ds.pi0.values
+    dsout['base_th']  = ds.th0.values
+    dsout['base_qv']  = ds.qv0.values
+    dsout['base_prs'] = ds.prs0.values
+    dsout['base_t']   = ds.pi0.values * ds.th0.values
+    dsout['base_den'] = dsout['base_prs'] / (_Rgas * dsout['base_t'] * (1.0 + _epsil*dsout['base_qv']))
+
+# Some variables we need a lot...
+
+    dsout['pii'] = (ds.prs.values / _p00 )**_rdocp
+
+# Now add variables to dsout created in variable list
 
     for key in variables:
 
@@ -138,20 +159,18 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['theta'] = ds.th.values
             
         if key == 'pert_th': 
-            dsout['pert_th'] = ds.thpert.values
+            try:
+                dsout['pert_th'] = ds.thpert.values
+            except:
+                dsout['pert_th'] = ds.th.values - dsout['base_th']
             
         if key == 'buoy': 
-            qv0 = ds.qv[0,:,-1,-1].values
-            qv0 = np.broadcast_to(qv0[np.newaxis, :, np.newaxis, np.newaxis], ds.qv.shape)
-            dsout['buoy'] = 9.806*(ds.thpert.values/ds.th0.values + 0.61*(ds.qv.values-qv0) \
+            dsout['buoy'] = _grav*(ds.thpert.values/dsout['base_th']  \
+                          +  _epsil*(ds.qv.values - dsout['base_qv']) \
                           - ds.qc.values - ds.qr.values)
+
         if key == 'pert_t':
-            base_pii = ds.pi0.values  
-            base_th0 = ds.th0.values
-            base_t0  = base_th0*base_pii
-            pii      = (ds.prs.values / 100000.)**0.286
-            temp     = ds.th.values * pii
-            dsout['pert_t'] = temp - base_t0
+            dsout['pert_t'] = ds.th.values * dsout['base_pii'] - dsout['base_t']
  
         if key == 'u': 
             dsout['u'] = 0.5*(ds.u[:,:,:,1:] + ds.u[:,:,:,:-1]).values
@@ -187,20 +206,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['qr'] = ds.qr.values
 
         if key == 'den':
-            pii  = (ds.prs.values / 100000.)**0.286
-            dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*pii)
-            dsout['row'] = ds.prs.values / (_Rgas*ds.th.values*pii)
-            
-        if key == 'row':
-            pii  = (ds.prs.values / 100000.)**0.286
-            dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*pii)
+            dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*dsout['pii'])
+            dsout['row'] = dsout['den']
             
         if key == 'temp':
-            pii  = (ds.prs.values / 100000.)**0.286
-            dsout['temp'] = ds.th.values*pii
-
-        if key == 'pii':
-            dsout['pii'] = (ds.prs.values / 100000.)**0.286
+            dsout['temp'] = ds.th.values*dsout['pii']
 
         if key == 'dwdt':
             tmp             = ds.wb_pgrad.values + ds.wb_buoy.values
@@ -269,13 +279,12 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['fft_2d_div'] = div2d.real
 
         if key == 'thetae':
+
             print(" -->Computing ThetaE \n")
             
-            dsout['qv']   = ds.qv.values 
-            pii           = (ds.prs.values / 100000.)**0.286
-            dsout['temp'] = ds.th.values*pii
-            dsout['pres'] = ds.prs.values
-
+            dsout['qv']     = ds.qv.values 
+            dsout['temp']   = ds.th.values*dsout['pii']
+            dsout['pres']   = ds.prs.values
             dsout['thetae'] = compute_thetae(dsout)
 
     if unit_test:
@@ -285,10 +294,13 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         
-    if ret_beta:
+    if ret_beta:      # returning the acceleration from Beta, so divide by density
+
         print(" Reading BETA from %s" % ret_beta)
+
         dsbeta = xr.load_dataset(ret_beta, decode_times=False)
-        dsout['beta'] = dsbeta.Soln_Beta.values
+
+        dsout['beta'] = dsbeta.Soln_Beta.values / dsout['base_den']
 
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)
