@@ -98,9 +98,11 @@ def read_mpas_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                 dsout['dbz'] = np.load(f)
                 
             ret_dbz = False
+
+            dsout['cref'] = dsout['dbz'].max(axis=1)
                         
-            # for n in np.arange(dsout['dbz'].shape[0]):
-            #     print(n, dsout['dbz'][n].max())
+          # for n in np.arange(dsout['cref'].shape[0]):
+          #     print(n, dsout['cref'][n].max())
             
         else:
             variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
@@ -136,6 +138,7 @@ def read_mpas_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         if key == 'w': 
             dsout['w'] = ds.w.values
+            dsout['wmax'] = dsout['w'].max(axis=1)
 
         if key == 'vvort': 
             dsout['vvort'] = np.zeros_like(ds.theta.values)
@@ -181,6 +184,8 @@ def read_mpas_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     if ret_dbz:
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
+
+        dsout['cref'] = dsout['dbz'].max(axis=1)
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)

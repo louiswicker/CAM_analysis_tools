@@ -117,6 +117,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
                 dsout['dbz'] = np.load(f)
                 
+            dsout['cref'] = dsout['dbz'].max(axis=1)
+
             ret_dbz = False
                         
             # for n in np.arange(dsout['dbz'].shape[0]):
@@ -183,6 +185,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                 dsout['w'] = ds.winterp.values
             except:
                 dsout['w'] = 0.5*(ds.w[:,1:,:,:] + w[:,:-1,:,:]).values
+
+            dsout['wmax'] = dsout['w'].max(axis=1)
 
         if key == 'vvort': 
             dsout['vvort'] = np.zeros_like(ds.thpert.values)
@@ -293,6 +297,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     if ret_dbz:
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
+        dsout['cref'] = dsout['dbz'].max(axis=1)
         
     if ret_beta:      # returning the acceleration from Beta, so divide by density
 

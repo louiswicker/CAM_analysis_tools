@@ -114,6 +114,8 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                 dsout['dbz'] = np.load(f)
                 
             ret_dbz = False
+
+            dsout['cref'] = dsout['dbz'].max(axis=1)
                         
             # for n in np.arange(dsout['dbz'].shape[0]):
             #     print(n, dsout['dbz'][n].max())
@@ -149,8 +151,8 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['v'] = 0.5*(v[:,:,1:,:] + v[:,:,:-1,:])
 
         if key == 'w': 
-            w      = ds.W.values
-            dsout['w'] = 0.5*(w[:,1:,:,:] + w[:,:-1,:,:])
+            dsout['w'] = 0.5*(ds.W.values[:,1:,:,:] + ds.W.values[:,:-1,:,:])
+            dsout['wmax'] = dsout['w'].max(axis=1)
 
         if key == 'vvort': 
             dsout['vvort'] = np.zeros_like(ds.T.values)
@@ -206,6 +208,7 @@ def read_wrf_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     if ret_dbz:
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
+        dsout['cref'] = dsout['dbz'].max(axis=1)
         
     print(" Completed reading in:  %s \n" % path)
     print(f'-'*120)
