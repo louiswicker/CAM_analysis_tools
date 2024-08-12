@@ -26,17 +26,16 @@ zhgts = 250. + 250.*np.arange(100)
 
 dirs    = {
            "mpas": "/work/wicker/climate_runs/MPAS/ideal/vis05_3rd",
-           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/base",
-           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
+           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/4th",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/4th",
           }
-
-profile_dir = "./climate_runs/precip"
 
 allcape = ("C2000", "C3500")
 
 
 run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
 run      = {"mpas": "squall_3km" }
+run      = {"cm1": "squall_3km", "wrf": "squall_3km"}
 
 allcape  = ( "C2000", "C3500")
 allshear = ("06", "12", "18")

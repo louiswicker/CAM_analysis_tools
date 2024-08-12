@@ -24,21 +24,19 @@ _nthreads = 2
 
 dirs    = {
            "mpas": "/work/wicker/climate_runs/MPAS/ideal/base",
-           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/base",
-           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
+           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/4th",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/4th",
           }
-
-profile_dir = "./climate_runs/object_stat"
 
 allcape = ("C2000", "C3500")
 allshear = ("06", "18")
 
-run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
+run      = {"cm1": "squall_3km", "wrf": "squall_3km"}
 
 allcape  = ( "C2000", "C3500")
 allshear = ( "06", "12", "18" )
 
-plabel = "dbz99"
+plabel = "object"
 
 for key in run:
 
@@ -53,9 +51,9 @@ for key in run:
             field[label] = getobjdata(file, model_type=key)
                 
         
-    with open('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel), 'wb') as handle:
+    with open('%s/%s.pkl' % (dirs[key], plabel), 'wb') as handle:
         pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    print("\n Squall_obj wrote pickled file:  %s out!\n" % ('%s/%s_%s_%s.pkl' % (profile_dir, key, run[key], plabel)))
+    print("\n Squall_obj wrote pickled file:  %s out!\n" % ('%s/%s.pkl' % (dirs[key], plabel)))
 
 # the end
