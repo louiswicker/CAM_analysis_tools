@@ -73,6 +73,25 @@ def get_percentile_value(field, percentile=0.99):
 #----------------------------------------------------------------------------
 #
 
+def compute_ppez(state):
+
+    """
+
+       Compute the perturbation pressure as it is computed at the top
+       of the SIM1 and SIM nh_utils.F90 solvers.  
+
+       The computation is in two stages:
+
+       1) compute pp from theta field and by subtracting out the h-press
+
+       2) solve tridiagonal system for parabolic/cubic interpolation
+
+       returns the ppe on edge of domain
+
+    """
+#----------------------------------------------------------------------------
+#
+
 def compute_dbz(state, version=2):
 
     """

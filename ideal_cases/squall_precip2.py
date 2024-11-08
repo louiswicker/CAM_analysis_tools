@@ -25,7 +25,7 @@ dirs    = {
            "solo": "/work/wicker/Odin_scr/solo",
            "wrf": "/work/wicker/WRF/WRF/test/em_quarter_ss",
            "cm1": "/work/wicker/Odin_scr/cm1r20.3/run",
-           "mpas": "/scratch/wicker/MPAS/ideal/squall",
+           "mpas": "//wicker/MPAS//squall",
           }
 
 profile_dir = "precip"

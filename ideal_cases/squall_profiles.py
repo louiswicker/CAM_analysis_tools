@@ -26,22 +26,19 @@ min_pix = 3
 zhgts = 250. + 250.*np.arange(100)
 
 # where is data
-
 dirs    = {
-           "mpas": "/work/wicker/climate_runs/MPAS/ideal/vis01_3rd",
-           "wrf": "/work/wicker/climate_runs/WRF_v4.4.2/ideal/4th",
-           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/4th",
+           "mpas": "/work/wicker/climate_runs/MPAS/squall/wofs",
+           "wrf": "/work/wicker/climate_runs/WRF/WRF_v4.4.2/ideal/base",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
           }
 
-allcape = ("C2000", "C3500")
-allshear = ("06", "18")
+run      = {"wrf": "squall_3km", "mpas": "squall_3km", "cm1": "squall_3km"}
 
-run      = {"cm1": "squall_3km", "mpas": "squall_3km", "wrf": "squall_3km"}
+run      = {"mpas": "squall_3km"}
 
-run      = {"cm1": "squall_3km", "wrf": "squall_3km"}
-
-allcape  = ( "C2000", "C3500")
+allcape  = ( "C2000", "C2500", "C3000", "C3500")
 allshear = ( "06", "12", "18" )
+
 
 plabel = "profile"
 

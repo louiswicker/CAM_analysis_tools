@@ -150,7 +150,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         return profiles
 
 #---------------------------
-    if model_type == 'mpas':
+    if model_type == 'mpas' or model_type == 'wpas':
         
         ds = read_mpas_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
@@ -331,28 +331,59 @@ def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5,
         
 #-------------------------------------------------------------------------------
 
-def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'u', 'v', 'buoy', 'qr', 'pres', 'pert_th'], file_pattern=None):
+def getobjdata(path, model_type='wrf', vars=['hgt', 'w', 'u', 'v', 'buoy', 'qr', 'pres', 'pert_th'], \
+               thin_data=0, file_pattern=None):
     
     print("processing model run:  %s \n" % path)
     
     if model_type == 'fv3_solo' or model_type =='solo':
 
-        return read_solo_fields(path, file_pattern=file_pattern,
-                                vars=vars, ret_dbz=True)
+        model_output = read_solo_fields(path, file_pattern=file_pattern,
+                                        vars=vars, ret_dbz=True)
     
     if model_type == 'wrf':
     
-        return read_wrf_fields(path, file_pattern=file_pattern,
-                               vars=vars, ret_dbz=True)
+        model_output = read_wrf_fields(path, file_pattern=file_pattern,
+                                       vars=vars, ret_dbz=True)
     
     if model_type == 'cm1':
         
-        return read_cm1_fields(path, file_pattern=file_pattern,
-                               vars=vars, ret_dbz=True)
+        model_output = read_cm1_fields(path, file_pattern=file_pattern,
+                                       vars=vars, ret_dbz=True)
     
     if model_type == 'mpas':
         
-        return read_mpas_fields(path, file_pattern=file_pattern,
-                               vars=vars, ret_dbz=True)
-    
-    
+        model_output = read_mpas_fields(path, file_pattern=file_pattern,
+                                        vars=vars, ret_dbz=True)
+
+    if model_type == 'wpas':
+        
+        model_output = read_mpas_fields(path, file_pattern=file_pattern,
+                                        vars=vars, ret_dbz=True)
+
+    if thin_data == 0:
+
+        return model_output
+
+    else:
+
+        print("Thining model: thin = %d" % thin_data)
+
+        tarray = np.arange(0,25,thin_data).tolist()
+
+        print('Times to be returned:  ', tarray)
+
+        thin_model = {}
+
+        for key in model_output:
+
+            if model_output[key].ndim > 1 and model_output[key].shape[0] == 25:
+                thin_model[key] = model_output[key][::thin_data]
+
+            if model_output[key].ndim == 1 and model_output[key].shape[0] == 25:
+                thin_model[key] = model_output[key][::thin_data]
+                
+            if model_output[key].ndim > 1 and model_output[key].shape[0] != 25:
+                thin_model[key] = model_output[key]
+
+        return thin_model

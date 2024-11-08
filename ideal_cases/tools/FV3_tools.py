@@ -161,8 +161,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
-            dsout['buoy'] = _grav*(pert_th/base_th + 0.61*pert_qv \
-                          - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
+            dsout['buoy'] = _grav*(pert_th/base_th + 0.61*pert_qv - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
             
         if key == 'dpstar':
             dsout['dpstar'] = ds.delp.values[:,::-1,:,:]
