@@ -193,18 +193,18 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
-            ptop       = ds.phalf[0]
-            phalf      = ds.phalf[1:]
-            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
-            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-            p_from_qv  = ((ds.spfh)*ds.delp).cumsum(dim='pfull').values
-            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
-                       + ds.clwmr.cumsum(dim='pfull').values
+#           ptop       = ds.phalf[0]
+#           phalf      = ds.phalf[1:]
+#           pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
+#           pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+#           p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
+#           p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
+#                      + ds.clwmr.cumsum(dim='pfull').values
             
-            dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
-            pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
-            dsout['pert_nh'] = ds.nhpres[:,::-1,:,:].values - pfull_ref
-            dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
+#           dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
+#           pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
+            dsout['pert_p'] = ds.nhpres_pert[:,::-1,:,:].values 
+#           dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
@@ -232,7 +232,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             try:
                 dsout['accum_prec'] = ds.rain_k.values[:,:,:]  # original name
             except:
-                dsout['accum_prec'] = ds.accumulated_rain.values[:,:,:] # new name
+                dsout['accum_prec'] = ds.accum_rain.values[:,:,:] # new name
 
         if key == 'div2d':
             print(" -->Computing finite difference 2D divergence\n")
