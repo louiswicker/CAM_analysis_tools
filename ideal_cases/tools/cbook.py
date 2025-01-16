@@ -31,16 +31,32 @@ _normr = 25132741228.7183
 _qmin  = 1.0e-12
 
 #--------------------------------------------------------------------------------------------------
-# Code from Joel McClune to convert dictionaries to objects
+def open_mfdataset_list(data_dir, pattern):
 
-class DictObj:
-    def __init__(self, in_dict:dict):
-        assert isinstance(in_dict, dict)
-        for key, val in in_dict.items():
-            if isinstance(val, (list, tuple)):
-               setattr(self, key, [DictObj(x) if isinstance(x, dict) else x for x in val])
+    """
+    Use xarray.open_mfdataset to read multiple netcdf files from a list.
+    """
+
+    filelist = os.path.join(data_dir,pattern)
+
+    return xr.open_mfdataset(filelist, parallel=True)
+
+#--------------------------------------------------------------------------------------------------
+# class to convert dict-2-object from Py-Core.com Python Programming
+
+class Dict2Object:
+
+    def __init__(self, dictionary:dict):
+
+        assert isinstance(dictionary, dict)
+
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                setattr(self, key, Dict2Object(value))
+            elif isinstance(value, list):
+                setattr(self, key, [Dict2Object(item) if isinstance(item, dict) else item for item in value])
             else:
-               setattr(self, key, DictObj(val) if isinstance(val, dict) else val)
+                setattr(self, key, value)
 
 #----------------------------------------------------------------------------
 #
@@ -53,7 +69,7 @@ def pickle2Obj(file, retObj=True):
         file = pickle.load(f)
         f.close()
         if retObj == True:
-            return(DictObj(file))
+            return(Dict2Object(file))
         else:
             return file
 #

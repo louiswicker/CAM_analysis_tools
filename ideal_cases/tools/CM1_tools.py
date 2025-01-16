@@ -7,7 +7,7 @@ import sys as sys
 
 from numpy.fft import fft2, ifft2, fftfreq
 
-from tools.cbook import interp_z, write_Z_profile, compute_dbz, compute_thetae
+from tools.cbook import Dict2Object, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -31,36 +31,14 @@ _grav        = 9.806
 _p00         = 1.0e5
 _p00_rdocp   = _p00 ** _rdocp
 
+#--------------------------------------------------------------------------------------------------
+#
 default_var_map = [        
-                   'temp',   
                    'w',     
-                   'u',    
-                   'v',   
-                   'vvort', 
-                   'qv',     
-                   'qc',    
-                   'qr',     
-                   'pres',   
                    'pert_p',   
-                   'pii',     
                    'accum_prec',
-                   'theta',    
                    'pert_th',   
-                   'thetae',
-                   'buoy',
-                   'dwdt',
                    ]
-
-#--------------------------------------------------------------------------------------------------
-def open_mfdataset_list(data_dir, pattern):
-
-    """
-    Use xarray.open_mfdataset to read multiple netcdf files from a list.
-    """
-
-    filelist = os.path.join(data_dir,pattern)
-    return xr.open_mfdataset(filelist, parallel=True)
-#--------------------------------------------------------------------------------------------------
 
 #--------------------------------------------------------------------------------------------------
 #
@@ -68,7 +46,7 @@ def open_mfdataset_list(data_dir, pattern):
 #
 
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
-                    ret_dbz=False, ret_beta=False, zinterp=None, unit_test=False):
+                    ret_dbz=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
  
     if file_pattern == None:
         # see if the path has the filename on the end....
@@ -134,10 +112,10 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
 # Add some spatial info
 
-    dsout['xc'] = 1000*ds.xh.values
-    dsout['yc'] = 1000*ds.yh.values
-    dsout['zc'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
-    dsout['ze'] = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
+    dsout['xc']  = 1000*ds.xh.values
+    dsout['yc']  = 1000*ds.yh.values
+    dsout['zc']  = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
+    dsout['ze']  = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
     dsout['hgt'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
 
 # Add some base state info - these are full 3D/4D arrays
@@ -329,10 +307,15 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         print(" Finished interp fields to single column z-grid:  %s \n" % path)
         print(f'-'*120)
 
+# Finish
+
+    ds.close()
+
+    if ret_obj:
+        dsout = Dict2Object(dsout)
+
     if ret_ds:
-        ds.close()
         return dsout, ds
     else:
-        ds.close()
         return dsout
  

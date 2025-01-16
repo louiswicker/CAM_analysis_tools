@@ -6,7 +6,7 @@ import os as os
 import glob
 import sys as sys
 
-from tools.cbook import write_Z_profile, compute_dbz
+from tools.cbook import Dict2Obj, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -26,21 +26,9 @@ _grav       = 9.806
 _default_file = "wrfout_d01_0001-01-01_00:00:00"
 
 default_var_map = [        
-                   'temp',   
-                   'hgt',  
                    'w',     
-                   'u',    
-                   'v',   
-                   'vvort', 
-                   'qv',     
-                   'qc',    
-                   'qr',     
-                   'pres',   
                    'pert_p',   
-                   'dpdz'
-                   'pii',     
                    'accum_prec',
-                   'theta',    
                    'pert_th',   
                    ]
                    
@@ -58,8 +46,7 @@ def open_mfdataset_list(data_dir, pattern, skip=0):
         if skip > 0:
                 filelist = filelist[0:-1:skip]
                 
-        return xr.load_mfdataset(filelist, combine='nested', 
-                                                         concat_dim=['Time'], parallel=True)
+        return xr.load_mfdataset(filelist, combine='nested', concat_dim=['Time'], parallel=True)
 
 #
 #--------------------------------------------------------------------------------------------------

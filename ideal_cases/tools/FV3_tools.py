@@ -9,7 +9,7 @@ import sys as sys
 
 from numpy.fft import fftn, ifftn, fftfreq
 
-from tools.cbook import interp_z, write_Z_profile, compute_dbz, compute_thetae
+from tools.cbook import Dict2Object, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -23,28 +23,17 @@ warnings.filterwarnings("ignore")
     
 _nthreads = 2
 
-_Rgas       = 287.04
-_grav       = 9.806
+_Rgas          = 287.04
+_grav          = 9.806
 _default_file = "atmos_hifreq.nc"
 
+#--------------------------------------------------------------------------------------------------
+#
 default_var_map = [                # do not include coordinates in this list, automatically added.       
-                   'dpstar',
-                   'temp',
                    'w',     
-                   'u',    
-                   'v',   
-                   'qv',     
-                   'qc',    
-                   'qr',     
-                   'pres',   
                    'pert_p',   
-                   'pii',     
                    'accum_prec',
-                   'theta',    
                    'pert_th',   
-                   'buoy',
-                   'ppedge',
-                   'thetae',
                    ]
 
 #--------------------------------------------------------------------------------------------------
@@ -53,7 +42,7 @@ default_var_map = [                # do not include coordinates in this list, au
 #
 
 def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
-                     ret_ds=False, ret_beta=False, zinterp=None, unit_test=False):
+                     ret_ds=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
         
     if file_pattern == None:
     
@@ -332,9 +321,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         print(" Finished interp fields to single column z-grid:  %s \n" % path)
         print(f'-'*120)
 
+# Finish
+
+    ds.close()
+
+    if ret_obj:
+        dsout = Dict2Object(dsout)
+
     if ret_ds:
-        ds.close()
         return dsout, ds
     else:
-        ds.close()
         return dsout
