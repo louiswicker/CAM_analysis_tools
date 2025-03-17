@@ -7,6 +7,7 @@ import os as os
 import glob
 import sys as sys
 import matplotlib as mpl
+from datetime import date, time, datetime
 
 import tools
 from tools.FV3_tools import read_solo_fields
@@ -30,6 +31,48 @@ _nthreads = 2
 _Rgas     = 287.04
 _gravity  = 9.806
 
+#--------------------------------------------------------------------------------------------------
+# my datetime stuff
+def my_datetime(input: list, time_delta=None, format=None):
+
+    """
+        Inputs: input (list) list of [YY, MM, DD, HH, MM, SS]
+
+                time_delta: (list)  -> [Days, hours, minutes]
+                                
+                                or
+                                    ->  [Days, hours, minutes, seconds]
+                                    
+                format:  (string)   ->  '%Y-%m-%d::%H-%M'
+                
+                                or
+                                    ->  '%H%M'  (usefull for WoFS files)
+
+        returns:  Datetime object or string if format is supplied.
+        
+    """
+    try:
+        hhmm = datetime.datetime(*input)
+    except ValueError:
+        print(f"Input is invalid, need YYMMDDHHMM {input}")
+        
+    if time_delta == None:
+        if format == None:
+            return hhmm
+        else:
+            return hhmm.strftime(format)
+    else:
+        if len(time_delta) == 3:
+            timeD = datetime.timedelta(days=time_delta[1], hours=time_delta[2], minutes=time_delta[3])
+        else:
+            timeD = datetime.timedelta(days=time_delta[1], hours=time_delta[2], minutes=time_delta[3], seconds=time_delta[3])
+            
+        hhmm  = hhmm + timeD
+        if format == None:
+            return hhmm
+        else:
+            return hhmm.strftime(format)
+            
 #--------------------------------------------------------------------------------------------------
 def check_data(models):
     for mkey in models.keys():
