@@ -27,16 +27,13 @@ _nthreads = 2
 
 # where is data
 dirs    = {
-           "mpas": "/work/wicker/climate_runs/MPAS/squall/wofs",
-           "wrf": "/work/wicker/climate_runs/WRF/WRF_v4.4.2/ideal/base",
-           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
+           "solo": "/work/wicker/climate_runs/FV3_Solo",
+           "cm1": "/work/wicker/climate_runs/cm1r20.3/run",
           }
 
-run      = {"wrf": "squall_3km", "mpas": "squall_3km", "cm1": "squall_3km"}
+run      = {"solo": "squall", "cm1": "squall"}
 
-run      = {"mpas": "squall_3km"}
-
-allcape  = ( "C2000", "C2500", "C3000", "C3500")
+allcape  = ( "C2000", )
 allshear = ( "06", "12", "18" )
 
 plabel = "object"
@@ -48,9 +45,9 @@ for key in run:
     for shear in allshear:
         for cape in allcape:
         
-            label = "%s_%s" % (cape, shear)
+            label = "%s/%s" % (cape, shear)
         
-            file = str(os.path.join(dirs[key], "%s_%s" % (run[key], label)))
+            file = str(os.path.join(dirs[key], "%s/%s" % (run[key], label)))
             field[label] = getobjdata(file, thin_data=4, model_type=key)
                 
         

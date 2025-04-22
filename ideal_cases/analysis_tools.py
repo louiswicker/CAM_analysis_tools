@@ -126,9 +126,11 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
     
     print(f'-'*120,'\n')
     print(" Processing model run:  %s \n" % path)
-    
+
+    percent_var  = kwargs.get("percent_var", "dbz") 
+
     if percentile:
-        print(" Processing objects with CREF percentile:  %f \n" % percentile)
+        print(" Processing objects with variable: {percent_var} with percentile:  %f \n" % percentile)
     
 #---------------------------
     if model_type == 'fv3_solo' or model_type == 'solo':

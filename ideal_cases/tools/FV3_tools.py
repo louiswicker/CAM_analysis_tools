@@ -85,22 +85,24 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         
     # figure out if we need dbz to be computed
     
-    if ret_dbz:
-    
-        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
-    
-        if os.path.exists(dbz_filename):
-            print("\n Reading external DBZ file: %s\n" % dbz_filename)
-            with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
-                dsout['dbz'] = np.load(f)
-                
-            ret_dbz = False
-                        
-           #for n in np.arange(dsout['dbz'].shape[0]):
-           #    print(n, dsout['dbz'][n].max())
-            
-        else:
-            variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
+#   if ret_dbz:
+#   
+#       dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
+#   
+#       if os.path.exists(dbz_filename):
+#           print("\n Reading external DBZ file: %s\n" % dbz_filename)
+#           with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
+#               dsout['dbz'] = np.load(f)
+#               
+#           dsout['cref'] = dsout['dbz'].max(axis=1)
+#
+#           ret_dbz = False
+#                       
+#          #for n in np.arange(dsout['dbz'].shape[0]):
+#          #    print(n, dsout['dbz'][n].max())
+#           
+#       else:
+#           variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
 
 # Add two time variables
 
@@ -114,10 +116,11 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
     ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
 
-    dsout['zc'] = np.zeros_like(ze)
+    dsout['ze']  = ze
+    dsout['zc']  = np.zeros_like(ze)
     dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
     dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
-    dsout['ze'] = ze
+    dsout['hgt'] = dsout['zc']
                         
     for key in variables:
 
@@ -146,7 +149,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             base_th  = theta[0,:,-1,-1]
             base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_th  = theta - base_th
-            qv      = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            qv      = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
@@ -213,7 +216,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['dpdz'] = ds.vaccel.values[:,::-1,:,:]
 
         if key == 'qv':
-            dsout['qv'] = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            dsout['qv'] = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
 
 
         if key == 'qc':
@@ -273,7 +276,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'thetae':
             print(" -->Computing ThetaE \n")
 
-            dsout['qv'] = ds.spfh.values[:,::-1,:,:] / (1.0 + ds.spfh.values[:,::-1,:,:])  # convert to mix-ratio
+            dsout['qv'] = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
             pii           = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             dsout['temp'] = pii*ds.theta.values[:,::-1,:,:]
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
@@ -284,8 +287,11 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
     if ret_dbz:   
-        dsout = compute_dbz(dsout, version=2)
-        with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
+        dsout['dbz']  = ds['reflectivity'].values[:,::-1,:,:]
+        dsout['cref'] = dsout['dbz'].max(axis=1)
+
+#       dsout = compute_dbz(dsout, version=2)
+#       with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
 
     if ret_beta:   # Beta is a force, divide by density to get accel (density is based on Tv)
 

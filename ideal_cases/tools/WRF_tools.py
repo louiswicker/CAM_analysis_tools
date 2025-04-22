@@ -6,7 +6,7 @@ import os as os
 import glob
 import sys as sys
 
-from tools.cbook import Dict2Obj, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
+from tools.cbook import Dict2Object, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
 warnings.filterwarnings("ignore")
