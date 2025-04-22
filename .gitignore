@@ -11,3 +11,5 @@ input_sounding*
 *.nc
 */*.nc
 *__py*
+*.pickle
+Larissa
