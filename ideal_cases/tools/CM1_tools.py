@@ -35,9 +35,7 @@ _p00_rdocp   = _p00 ** _rdocp
 #
 default_var_map = [        
                    'w',     
-                   'pert_p',   
                    'accum_prec',
-                   'pert_th',   
                    ]
 
 #--------------------------------------------------------------------------------------------------
@@ -162,7 +160,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             try:
                 dsout['w'] = ds.winterp.values
             except:
-                dsout['w'] = 0.5*(ds.w[:,1:,:,:] + w[:,:-1,:,:]).values
+                dsout['w'] = 0.5*(ds.w[:,1:,:,:] + ds.w[:,:-1,:,:]).values
 
             dsout['wmax'] = dsout['w'].max(axis=1)
 
@@ -318,4 +316,54 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         return dsout, ds
     else:
         return dsout
+
+#--------------------------------------------------------------------------------------------------
+#
+# READ CM1 FIELDS
+#
+
+def read_cm1_w(path, file_pattern=None, netCDF=False):
+
+    from netCDF4 import MFDataset, Dataset
  
+    if file_pattern == None:
+        # see if the path has the filename on the end....
+        if os.path.basename(path)[:-3] != ".nc":
+            path = os.path.join(path, _default_file)
+            print(f'-'*120,'\n')
+            print(" Added default filename to path input:  %s" % path)
+
+        print(f'-'*120,'\n')
+        print(" Reading:  %s \n" % path)
+        
+        try:
+                fobj = Dataset(path)
+        except:
+                print("Cannot find the file in %s, exiting"  % path)
+                sys.exit(-1)
+    else:
+        fobj = Dataset(path)
+
+# storage bin
+
+    dsout = {}
+
+# Add two time variables
+
+    dsout['sec'] = fobj.variables['time'][:]
+    dsout['min'] = fobj.variables['time'][:]/60.
+
+# Add some spatial info
+
+    dsout['xc']  = 1000*fobj.variables['xh'][:]
+    dsout['yc']  = 1000*fobj.variables['yh'][:]
+    theta        = fobj.variables['th'][...]
+    dsout['zc']  = 1000.*np.broadcast_to(fobj.variables['zh'][:][np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
+    dsout['hgt'] = 1000.*np.broadcast_to(fobj.variables['zh'][:][np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
+       
+    try:
+        dsout['w'] = fobj.variables['winterp'][...]
+    except:
+        dsout['w'] = 0.5*(fobj.variables['w'][:,1:,:,:] + fobj.variables['w'][:,:-1,:,:]).values
+
+    return dsout
