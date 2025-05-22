@@ -217,7 +217,7 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
 
 #-------------------------------------------------------------------------------
 def compute_obj_profiles(ds, w_thresh = 3.0, cref_thresh = 45., min_pix=5, 
-                         zhgts = 250. + 250.*np.arange(100), extra_vars = None):
+                         zhgts = 250. + 250.*np.arange(100), extra_vars = None, **kwargs):
     
     from skimage.measure import label
 

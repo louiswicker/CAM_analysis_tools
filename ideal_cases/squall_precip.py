@@ -2,13 +2,9 @@ from pathlib import Path
 import sys
 
 import numpy as np
-import matplotlib as mlab
-import matplotlib.pyplot as plt
-import xarray as xr
 import os as os
 import glob
-import matplotlib.gridspec as gridspec
-import metpy.calc as mpcalc
+
 import pickle
 
 import tools
