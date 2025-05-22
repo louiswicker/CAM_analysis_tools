@@ -38,6 +38,13 @@ default_var_map = [                # do not include coordinates in this list, au
 
 #--------------------------------------------------------------------------------------------------
 #
+class DictAsObject:
+    def __init__(self, data):
+        for key, value in data.items():
+            setattr(self, key, value)
+
+#--------------------------------------------------------------------------------------------------
+#
 # READ SOLO FIELDS
 #
 
@@ -196,15 +203,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
-#           ptop       = ds.phalf[0]
-#           phalf      = ds.phalf[1:]
-#           pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
-#           pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-#           p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-#           p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
-#                      + ds.clwmr.cumsum(dim='pfull').values
+            ptop       = ds.phalf[0]
+            phalf      = ds.phalf[1:]
+            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
+            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+            p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
+            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
+                     + ds.clwmr.cumsum(dim='pfull').values
             
-#           dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
+            dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
 #           pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
             dsout['pert_p'] = ds.nhpres_pert[:,::-1,:,:].values 
 #           dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
@@ -338,3 +345,60 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         return dsout, ds
     else:
         return dsout
+
+#########################################################################################
+#
+# Routine for fast variable read 
+#
+#
+def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
+
+    from netCDF4 import MFDataset, Dataset
+        
+    if file_pattern == None:
+        # see if the path has the filename on the end....
+        if os.path.basename(path)[:-3] != ".nc":
+            path = os.path.join(path, _default_file)
+            print(f'-'*120,'\n')
+            print(" Added default filename to path input:  %s" % path)
+
+        print(f'-'*120,'\n')
+        print(" Reading:  %s \n" % path)
+
+        try:
+            fobj = Dataset(path)
+        except:
+            print("Cannot find the file in %s, exiting"  % path)
+            sys.exit(-1)
+    else:
+        
+        fobj = Dataset(path)
+
+# storage bin
+
+    dsout = {}
+
+# Add two time variables
+
+    dsout['sec'] = fobj.variables['time'][:]
+    dsout['min'] = dsout['sec']/60.
+
+# Always add coordinates to data structure
+
+    dsout['xc'] = fobj.variables['grid_xt'][...] * 3000.
+    dsout['yc'] = fobj.variables['grid_yt'][...] * 3000.
+
+    ze = np.cumsum(fobj.variables['delz'][:,::-1,:,:], axis=1)
+
+    dsout['ze']  = ze
+    dsout['zc']  = np.zeros_like(ze)
+    dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
+    dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
+    dsout['hgt'] = dsout['zc']
+
+    if var == 'w': 
+            dsout['w'] = fobj.variables['w'][:,::-1,:,:]
+
+
+    return DictAsObject(dsout)
+

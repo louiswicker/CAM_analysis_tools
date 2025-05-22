@@ -13,84 +13,71 @@ import pickle
 
 import tools
 
+import timeit
+
 from analysis_tools import read_solo_fields, read_wrf_fields, read_cm1_fields, read_mpas_fields
 
-zhgts = 250. + 250.*np.arange(100)
+import argparse
 
-# where is data
-dirs    = {
-           "mpas": "/work/wicker/climate_runs/MPAS/squall/wofs",
-           "wrf": "/work/wicker/climate_runs/WRF/WRF_v4.4.2/ideal/base",
-           "cm1": "/work/wicker/climate_runs/cm1r20.3/run/base",
-          }
+_cape  = ("QV12", "QV13", "QV14", "QV15", "QV16")
+_shear = ( "S06", "S18" )
 
-run      = {"wrf": "squall_3km", "mpas": "squall_3km", "cm1": "squall_3km"}
+_profile_dir = "precip"
+_extra_label = ".pkl"
 
-run      = {"mpas": "squall_3km"}
+parser = argparse.ArgumentParser()
 
-allcape  = ( "C2000", "C2500", "C3000", "C3500")
-allshear = ( "06", "12", "18" )
+parser.add_argument('-d', dest="dir", type=str, help="Input directory", default=None)
 
-plabel = "precip"
+parser.add_argument('-r', dest="res", type=str, help="Resolution of experiment", default="3km")
 
-cm1   = {}
-wrf   = {}
-mpas  = {}
-wpas  = {}
+parser.add_argument('-t', dest="type", type=str, help="model core being read", default="solo")
 
-for key in run:
+parser.add_argument('--cape', dest="cape", default=_cape)
 
-    field = {}
+parser.add_argument('--shear', dest="shear", default=_shear)
 
-    for shear in allshear:
-        for cape in allcape:
-        
-            label = "%s_%s" % (cape, shear)
+args = parser.parse_args()
 
+if args.dir == None:
+    print("Need to provide directory path\n")
+    sys.exit()
+else:
+    exp_name = os.path.basename(args.dir)
 
-            file = str(os.path.join(dirs[key], "%s_%s" % (run[key], label)))
+if args.res == None:
+    print("Need to provide resolution (3km, 1km, etc)\n")
+    sys.exit()
 
-            if key == 'solo':
-                solo[label] = read_solo_fields(file, file_pattern=None, vars=['accum_prec'])
-                
-            if key == 'wrf':
-                wrf[label] = read_wrf_fields(file, file_pattern=None, vars=['accum_prec'])
+model = {}
 
-            if key == 'cm1':
-                cm1[label] = read_cm1_fields(file, file_pattern=None, vars=['w', 'accum_prec'], ret_dbz=True)
-                del cm1[label]['w']
-                del cm1[label]['dbz']
-                
-            if key == 'mpas':
-                mpas[label] = read_mpas_fields(file, file_pattern=None, vars=['w', 'accum_prec'], ret_dbz=True)
-                del mpas[label]['w']
-                del mpas[label]['dbz']
+for sh in args.shear:
+    for ca in args.cape:
 
-            if key == 'wpas':
-                wpas[label] = read_mpas_fields(file, file_pattern=None, vars=['w', 'accum_prec'], ret_dbz=True)
-                del wpas[label]['w']
-                del wpas[label]['dbz']
-                
-for key in run.keys():
+        t1 = timeit.default_timer()
     
-    if key == 'solo':
-        with open('%s/%s_%s_%s.pkl' % (dirs[key], plabel), 'wb') as handle:
-            pickle.dump(solo, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        label = "%s/%s" % (ca, sh)
 
-    if key == 'wrf':
-        with open('%s/%s.pkl' % (dirs[key], plabel), 'wb') as handle:
-            pickle.dump(wrf, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    
-    if key == 'cm1':
-        with open('%s/%s.pkl' % (dirs[key], plabel), 'wb') as handle:
-            pickle.dump(cm1, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        file = str(os.path.join(args.dir, "%s/%s" % (args.res, label)))
 
-    if key == 'mpas':
-        with open('%s/%s.pkl' % (dirs[key], plabel), 'wb') as handle:
-            pickle.dump(mpas, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if args.type == 'solo':
+            model[label] = read_solo_fields(file, file_pattern=None, vars=['accum_prec'])
 
-    if key == 'wpas':
-        with open('%s/%s.pkl' % (dirs[key], plabel), 'wb') as handle:
-            pickle.dump(wpas, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if args.type == 'wrf':
 
-    print("\n Squall_precip wrote pickled file:  %s out!\n" % ('%s/%s.pkl' % (dirs[key], plabel)))
+            model[label] = read_wrf_fields(file, file_pattern=None, vars=['accum_prec'])
+
+        if args.type == 'cm1':
+            model[label] = read_cm1_fields(file, file_pattern=None, vars=['accum_prec'])
+            
+        if args.type == 'mpas':
+            model[label] = read_mpas_fields(file, file_pattern=None, vars=['accum_prec'])
+
+        t2 = timeit.default_timer()
+
+        print(f"Time to read {args.type} {label} file: {t2-t1}")
+                
+with open('%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label), 'wb') as handle:
+    pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+print("\n Squall_precip wrote pickled file:  %s out!\n" % ('%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label)))

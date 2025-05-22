@@ -40,6 +40,13 @@ default_var_map = [
 
 #--------------------------------------------------------------------------------------------------
 #
+class DictAsObject:
+    def __init__(self, data):
+        for key, value in data.items():
+            setattr(self, key, value)
+
+#--------------------------------------------------------------------------------------------------
+#
 # READ CM1 FIELDS
 #
 
@@ -317,16 +324,17 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     else:
         return dsout
 
-#--------------------------------------------------------------------------------------------------
+#########################################################################################
 #
-# READ CM1 FIELDS
+# Routine for fast variable read 
+#
 #
 
-def read_cm1_w(path, file_pattern=None, netCDF=False):
+def read_cm1_w(path, var = 'w', directories=None, netCDF=False):
 
     from netCDF4 import MFDataset, Dataset
  
-    if file_pattern == None:
+    if directories == None:
         # see if the path has the filename on the end....
         if os.path.basename(path)[:-3] != ".nc":
             path = os.path.join(path, _default_file)
@@ -355,15 +363,19 @@ def read_cm1_w(path, file_pattern=None, netCDF=False):
 
 # Add some spatial info
 
+    zc           = fobj.variables['zh'][:]
+    theta        = fobj.variables['th'][...]
+
     dsout['xc']  = 1000*fobj.variables['xh'][:]
     dsout['yc']  = 1000*fobj.variables['yh'][:]
-    theta        = fobj.variables['th'][...]
-    dsout['zc']  = 1000.*np.broadcast_to(fobj.variables['zh'][:][np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
-    dsout['hgt'] = 1000.*np.broadcast_to(fobj.variables['zh'][:][np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
-       
-    try:
-        dsout['w'] = fobj.variables['winterp'][...]
-    except:
-        dsout['w'] = 0.5*(fobj.variables['w'][:,1:,:,:] + fobj.variables['w'][:,:-1,:,:]).values
+    dsout['zc']  = 1000.*np.broadcast_to(zc[np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
+    dsout['hgt'] = 1000.*np.broadcast_to(zc[np.newaxis, :, np.newaxis, np.newaxis], theta.shape)
 
-    return dsout
+    if var == 'w': 
+
+        try:
+            dsout['w'] = fobj.variables['winterp'][...]
+        except:
+            dsout['w'] = 0.5*(fobj.variables['w'][:,1:,:,:] + fobj.variables['w'][:,:-1,:,:]).values
+
+    return DictAsObject(dsout)
