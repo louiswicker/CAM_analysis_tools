@@ -16,6 +16,7 @@ from analysis_tools import read_solo_fields, read_wrf_fields, read_cm1_fields, r
 import argparse
 
 _cape  = ("QV12", "QV13", "QV14", "QV15", "QV16")
+_cape  = ("QV12", "QV14", "QV16")
 _shear = ( "S06", "S18" )
 
 _profile_dir = "precip"

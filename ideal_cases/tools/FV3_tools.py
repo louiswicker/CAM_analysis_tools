@@ -23,8 +23,21 @@ warnings.filterwarnings("ignore")
     
 _nthreads = 2
 
-_Rgas          = 287.04
-_grav          = 9.806
+# from FV3_Solo/SHiELD_SRC/FMS/constants/geos_constants.fh
+
+RGAS   = 8314.47 / 28.965           
+KAPPA  = RGAS/(3.5*RGAS)         
+CP_AIR = RGAS/KAPPA        
+
+_Rgas  = RGAS
+_grav  = 9.806
+_Cp    = CP_AIR
+_Cv    = CP_AIR - RGAS
+_Cvv   = 1424.0
+_Lv    = 2.4665e6
+_Cpv   = 1885.0
+
+
 _default_file = "atmos_hifreq.nc"
 
 #--------------------------------------------------------------------------------------------------
@@ -209,7 +222,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
             p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
             p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
-                     + ds.clwmr.cumsum(dim='pfull').values
+                       + ds.clwmr.cumsum(dim='pfull').values
             
             dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
 #           pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
@@ -224,7 +237,6 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         if key == 'qv':
             dsout['qv'] = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
-
 
         if key == 'qc':
             dsout['qc'] = ds.clwmr.values[:,::-1,:,:]
@@ -289,6 +301,24 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
             dsout['thetae'] = compute_thetae(dsout)
+
+        if key == 'total_e':
+            print(" -->Computing Total energy \n")
+
+            ptop        = ds.phalf[0]
+            phalf       = ds.phalf[1:]
+            pfull       = (ds.delp.cumsum(dim='pfull') + ptop).values
+            p_from_qv   = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
+            p_from_qp   = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
+            dry_pres    = (pfull - (p_from_qv - p_from_qp))[:,::-1,:,:]
+            rv          = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
+            rl          = (ds.rwmr.values + ds.clwmr.values)[:,::-1,:,:]
+            pii         = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            temperature = pii*ds.theta.values[:,::-1,:,:]
+
+            dens        = dry_pres / (_Rgas * temperature )
+
+            dsout['total_e'] = dens * ( _Cv*temperature + _Cvv*rv*temperature + _Cpv*rl*temperature - _Lv*rl + _grav*(1.0+rv+rl)*dsout['zc'] )
 
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))

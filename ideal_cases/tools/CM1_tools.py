@@ -29,6 +29,14 @@ _cvor        = 2.751
 _gravity     = 9.806
 _grav        = 9.806
 _p00         = 1.0e5
+
+
+_Cp    = 1004.0
+_Cv    = _Cp - _Rgas
+_Cvv   = 1424.0
+_Lv    = 2.4665e6
+_Cpv   = 1885.0
+
 _p00_rdocp   = _p00 ** _rdocp
 
 #--------------------------------------------------------------------------------------------------
@@ -264,6 +272,16 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                                + ifft2(1j * Ky * fft2(v[n,k]))
 
             dsout['fft_2d_div'] = div2d.real
+
+        if key == 'total_e':
+            print(" -->Computing Total energy \n")
+
+            rv          = ds.qv.values
+            rl          = ds.qc.values + ds.qr.values
+            temperature = ds.th.values * (ds.prs.values / _p00 )**_rdocp
+            dens        = ds.prs.values / (_Rgas*ds.th.values*dsout['pii'])
+
+            dsout['total_e'] = dens * ( _Cv*temperature + _Cvv*rv*temperature + _Cpv*rl*temperature - _Lv*rl + _grav*(1.0+rv+rl)*dsout['zc'] )
 
         if key == 'thetae':
 
