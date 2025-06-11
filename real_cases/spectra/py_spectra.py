@@ -341,7 +341,7 @@ def plot_spectra(fld, varray = None, func = get_spectra2D_RAD, legend = None, ax
                  ptitle='Power Spectra', loglog=1, LinsborgSlope = False, **kwargs):
     
     import matplotlib.ticker as mticker
-    from spectra.py_spectra import get_spectra2D_RAD
+    # from spectra.py_spectra import get_spectra2D_RAD
     
     if 'print_info' in kwargs:
         print_info = kwargs['print_info']

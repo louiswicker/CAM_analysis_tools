@@ -8,6 +8,6 @@ setup(
     cmdclass = {'build_ext': build_ext},
     include_dirs=[numpy.get_include()],
     ext_modules = [Extension("spectra", ["spectra.pyx"],
-    extra_compile_args=['-I/home/louis.wicker/miniconda3/envs/main/lib/python3.9/site-packages/numpy/core/include',
+    extra_compile_args=['-I/home/louis.wicker/miniconda3/envs/gnu12/lib/python3.12/site-packages/numpy/core/include',
     '-I/home/louis.wicker/miniconda3/envs/libs/include/c++/v1'],)]
 )

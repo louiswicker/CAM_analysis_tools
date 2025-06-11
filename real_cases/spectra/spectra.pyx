@@ -92,8 +92,6 @@ def haar(np.ndarray[DTYPE32_t, ndim=3] varArray, np.ndarray[DTYPE32_t, ndim=1] z
     
     for bb in range(bMax):
         
-        print bb
-        
         b = zArray[bb]
     
         for k in range(kMax):

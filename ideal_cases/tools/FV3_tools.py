@@ -68,15 +68,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     
     # see if the path has the filename on the end....
         if os.path.basename(path)[:-3] != ".nc":
-            path = os.path.join(path, _default_file)
+            fullpath = os.path.join(path, _default_file)
             print(f'-'*120,'\n')
-            print(" Added default filename to path input:  %s" % path)
+            print(f" Added default filename to path input: {fullpath}" )
     
         print(f'-'*120,'\n')
         print(" Reading:  %s \n" % path)
     
         try:
-            ds = xr.load_dataset(path, decode_times=False)
+            ds = xr.load_dataset(fullpath, decode_times=False)
         except:
             print("Cannot find file in %s, exiting"  % path)
             sys.exit(-1)
@@ -320,6 +320,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
             dsout['total_e'] = dens * ( _Cv*temperature + _Cvv*rv*temperature + _Cpv*rl*temperature - _Lv*rl + _grav*(1.0+rv+rl)*dsout['zc'] )
 
+        if key == 'theta_IC':
+            nz = dsout['zc'].shape[1]
+            ny = dsout['zc'].shape[2]
+            nx = dsout['zc'].shape[3]
+
+            with open(os.path.join(path, 'theta.bin'), 'rb') as f:
+                dsout['theta_IC'] = np.fromfile(f, dtype=np.float32).reshape((nx, ny, nz), order='F').transpose()
+        
+            with open(os.path.join(path, 'qv.bin'), 'rb') as f:
+                dsout['qv_IC'] = np.fromfile(f, dtype=np.float32).reshape((nx, ny, nz), order='F').transpose()
+
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
@@ -353,11 +364,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         for key in variables:
             if dsout[key].ndim == dsout['zc'].ndim:
-                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
-                dsout[key] = tmp
+                dsout[key] =  interp_z(dsout[key], dsout['zc'], zinterp)
 
         if ret_beta:
            dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+
+        if 'theta_IC' in variables:
+            dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
+            dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
 
