@@ -61,23 +61,28 @@ class DictAsObject:
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
                     ret_dbz=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
  
+    print(f'-'*120)
+    
     if file_pattern == None:
-        # see if the path has the filename on the end....
-        if os.path.basename(path)[:-3] != ".nc":
-            path = os.path.join(path, _default_file)
-            print(f'-'*120,'\n')
-            print(" Added default filename to path input:  %s" % path)
-
-        print(f'-'*120,'\n')
-        print(" Reading:  %s \n" % path)
-        try:
-                ds = xr.load_dataset(path, decode_times=False)
-        except:
-                print("Cannot find the file in %s, exiting"  % path)
-                sys.exit(-1)
-    else:
-        ds = open_mfdataset_list(run_dir,  file_pattern)
         
+        # see if the path has the filename on the end....
+        
+        if os.path.basename(path)[:-3] != ".nc":
+            fpath = os.path.join(path, _default_file)
+
+    else:
+       fpath = os.path.join(path, file_pattern)
+            
+    print(f" Now reading... {fpath}")
+        
+    try:
+        ds = xr.load_dataset(fpath, decode_times=False)
+    except:
+        print(f"Cannot find file in {fpath} exiting")
+        sys.exit(-1)
+
+    # Variable list processing
+    
     if vars != ['']:
 
         if vars[0] == '+':
@@ -308,13 +313,12 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         dsout['beta'] = dsbeta.Soln_Beta.values / dsout['base_den']
 
-    print(" Completed reading in:  %s \n" % path)
-    print(f'-'*120)
+    print(f" Completed reading in:  {fpath}")
 
     if zinterp is None:
         pass
     else:
-        print(" Interpolating fields to single column z-grid:  %s \n" % path)
+        print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
 
         new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
 
@@ -327,10 +331,9 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
            dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
-        print(" Finished interp fields to single column z-grid:  %s \n" % path)
-        print(f'-'*120)
+        print(f" Finished interp fields to single column z-grid:  {path} \n") 
 
-# Finish
+    # Finish
 
     ds.close()
 
@@ -348,27 +351,29 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 #
 #
 
-def read_cm1_w(path, var = 'w', directories=None, netCDF=False):
+def read_cm1_w(path, var = 'w', file_pattern=None, netCDF=False):
 
     from netCDF4 import MFDataset, Dataset
  
-    if directories == None:
-        # see if the path has the filename on the end....
-        if os.path.basename(path)[:-3] != ".nc":
-            path = os.path.join(path, _default_file)
-            print(f'-'*120,'\n')
-            print(" Added default filename to path input:  %s" % path)
-
-        print(f'-'*120,'\n')
-        print(" Reading:  %s \n" % path)
+    print(f'-'*120)
+    
+    if file_pattern == None:
         
-        try:
-                fobj = Dataset(path)
-        except:
-                print("Cannot find the file in %s, exiting"  % path)
-                sys.exit(-1)
+        # see if the path has the filename on the end....
+        
+        if os.path.basename(path)[:-3] != ".nc":
+            fpath = os.path.join(path, _default_file)
+            
     else:
-        fobj = Dataset(path)
+       fpath = os.path.join(path, file_pattern)
+            
+    print(f" Now Reading:  {fpath}")
+       
+    try:
+        fobj = Dataset(fpath)
+    except:
+        print(f"Cannot find the file in {fpath}, exiting")
+        sys.exit(-1)
 
 # storage bin
 
@@ -395,5 +400,7 @@ def read_cm1_w(path, var = 'w', directories=None, netCDF=False):
             dsout['w'] = fobj.variables['winterp'][...]
         except:
             dsout['w'] = 0.5*(fobj.variables['w'][:,1:,:,:] + fobj.variables['w'][:,:-1,:,:]).values
+
+        print(f" Completed reading: {fpath} \n")
 
     return DictAsObject(dsout)

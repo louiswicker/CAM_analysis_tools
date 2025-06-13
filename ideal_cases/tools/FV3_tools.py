@@ -64,26 +64,28 @@ class DictAsObject:
 def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
                      ret_ds=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
         
+    print(f'-'*120)
+    
     if file_pattern == None:
-    
-    # see if the path has the filename on the end....
+        
+        # see if the path has the filename on the end....
+        
         if os.path.basename(path)[:-3] != ".nc":
-            fullpath = os.path.join(path, _default_file)
-            print(f'-'*120,'\n')
-            print(f" Added default filename to path input: {fullpath}" )
-    
-        print(f'-'*120,'\n')
-        print(" Reading:  %s \n" % path)
-    
-        try:
-            ds = xr.load_dataset(fullpath, decode_times=False)
-        except:
-            print("Cannot find file in %s, exiting"  % path)
-            sys.exit(-1)
+            fpath = os.path.join(path, _default_file)
 
     else:
-        ds = xr.load_dataset(os.path.join(path, file_pattern), decode_times=False)
+       fpath = os.path.join(path, file_pattern)
+            
+    print(f" Now reading... {fpath}")
         
+    try:
+        ds = xr.load_dataset(fpath, decode_times=False)
+    except:
+        print(f"Cannot find file in {fpath} exiting"  % path)
+        sys.exit(-1)
+
+    # Variable list processing
+
     if vars != ['']:
 
         if vars[0] == '+':
@@ -169,7 +171,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             base_th  = theta[0,:,-1,-1]
             base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_th  = theta - base_th
-            qv      = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
+            qv       = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
@@ -194,7 +196,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                 pnh              = ds.pnhpres.values[:,::-1,:,:]
                 dpnh             = np.zeros_like(pnh)
                 dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
-                dsout['dwdt']   = -_grav*(dpnh / dpstar)
+                dsout['dwdt']    = -_grav*(dpnh / dpstar)
 
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
@@ -221,8 +223,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
             pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
             p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values  \
-                       + ds.clwmr.cumsum(dim='pfull').values
+            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
             
             dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
 #           pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
@@ -352,31 +353,51 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsbeta.Soln_Beta.shape)
         dsout['beta'] = dsbeta.Soln_Beta.values / den3d
         
-    print(" Completed reading in:  %s \n" % path)
-    print(f'-'*120)
+    print(f" Completed reading in:  {fpath}")
 
     if zinterp is None:
         pass
     else:
-        print(" Interpolating fields to single column z-grid:  %s \n" % path)
+        print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
 
         new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
 
         for key in variables:
             if dsout[key].ndim == dsout['zc'].ndim:
-                dsout[key] =  interp_z(dsout[key], dsout['zc'], zinterp)
+                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
+                dsout[key] = tmp
 
         if ret_beta:
            dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
 
-        if 'theta_IC' in variables:
-            dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
-            dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
-
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+        print(f" Finished interp fields to single column z-grid:  {path} \n") 
 
-        print(" Finished interp fields to single column z-grid:  %s \n" % path)
-        print(f'-'*120)
+    # if zinterp is None:
+    #     pass
+    # else:
+    #     print(" Interpolating fields to single column z-grid:  %s \n" % path)
+
+    #     new_shape = [dsout['zc'].shape[0], zinterp.shape[0], dsout['zc'].shape[2], dsout['zc'].shape[3],]
+
+    #     for key in dsout:
+    #         if dsout[key].ndim == dsout['zc'].ndim and key != 'zc':
+    #             dsout[key] =  interp_z(dsout[key], dsout['zc'], zinterp)
+                
+    #     if ret_beta:
+    #        dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+
+    #     if ret_beta:
+    #        dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+
+    #     if 'theta_IC' in variables:
+    #         dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
+    #         dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
+
+    #     dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+
+    #     print(" Finished interp fields to single column z-grid:  %s \n" % path)
+    #     print(f'-'*120)
 
 # Finish
 
@@ -398,26 +419,27 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
 
     from netCDF4 import MFDataset, Dataset
-        
+
+    print(f'-'*120)
+    
     if file_pattern == None:
-        # see if the path has the filename on the end....
-        if os.path.basename(path)[:-3] != ".nc":
-            path = os.path.join(path, _default_file)
-            print(f'-'*120,'\n')
-            print(" Added default filename to path input:  %s" % path)
-
-        print(f'-'*120,'\n')
-        print(" Reading:  %s \n" % path)
-
-        try:
-            fobj = Dataset(path)
-        except:
-            print("Cannot find the file in %s, exiting"  % path)
-            sys.exit(-1)
-    else:
         
-        fobj = Dataset(path)
+        # see if the path has the filename on the end....
+        
+        if os.path.basename(path)[:-3] != ".nc":
+            fpath = os.path.join(path, _default_file)
 
+    else:
+       fpath = os.path.join(path, file_pattern)
+            
+    print(f" Now reading... {fpath}")
+        
+    try:
+        fobj = Dataset(fpath)
+    except:
+        print(f"Cannot find the file in {fpath}, exiting")
+        sys.exit(-1)
+            
 # storage bin
 
     dsout = {}
@@ -443,6 +465,7 @@ def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
     if var == 'w': 
             dsout['w'] = fobj.variables['w'][:,::-1,:,:]
 
-
+    print(f" Completed reading: {fpath} \n")
+    
     return DictAsObject(dsout)
 
