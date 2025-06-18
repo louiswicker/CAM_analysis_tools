@@ -24,14 +24,13 @@ min_pix     = 3
 zhgts = 250. + 250.*np.arange(100)
 
 
-_cape  = ("QV12", "QV13", "QV14", "QV15", "QV16")
-_shear = ( "S06", "S18" )
-
-_cape  = ("QV12",)
+_cape  = ("QV14",)
 _shear = ( "S06", )
 
+_cape  = ("QV13", "QV14", "QV15", "QV16")
+_shear = ( "S06", "S12", "S18" )
 
-_profile_dir = "precip"
+_profile_dir = "profiles"
 _extra_label = ".pkl"
 
 parser = argparse.ArgumentParser()
@@ -40,7 +39,7 @@ parser.add_argument('-d', dest="dir", type=str, help="Input directory", default=
 
 parser.add_argument('-r', dest="res", type=str, help="Resolution of experiment", default="3km")
 
-parser.add_argument('-t', dest="type", type=str, help="Model core being read", default="solo")
+parser.add_argument('-c', dest="core", type=str, help="Model core being read", default="solo")
 
 parser.add_argument('--pvar', dest="pvar", type=str, help="Variable for percentiles (qr or dbz)", default="dbz")
 
@@ -56,8 +55,8 @@ if args.dir == None:
 else:
     exp_name = os.path.basename(args.dir)
 
-if args.res == None:
-    print("Need to provide resolution (3km, 1km, etc)\n")
+if args.core == None:
+    print("Need to specify model core (cm1, solo) etc)\n")
     sys.exit()
 
 model = {}
@@ -68,7 +67,7 @@ print(outprefix)
 
 the_dir   = os.path.join(args.dir, args.res)
 
-print(f"Now computing profiles from this model: {args.type} and from this directory: {the_dir}")
+print(f"Now computing profiles from this model: {args.core} and from this directory: {the_dir}")
 
 field = {'w_thres':w_thresh, 'cref_thresh':cref_thresh, 'min_pix': min_pix, 'percentile':percent}
 
@@ -83,16 +82,16 @@ for sh in args.shear:
 
         print(f"File now being read:  {file}")
         
-        field[label] = generate_ideal_profiles(file, model_type=args.type, w_thresh = w_thresh,
+        field[label] = generate_ideal_profiles(file, model_type=args.core, w_thresh = w_thresh,
                                                cref_thresh = cref_thresh, min_pix=min_pix,
-                                               percentile=percent, percent_var='dbz', zhgts = zhgts)
+                                               percentile=percent, percent_var=args.pvar, zhgts = zhgts)
 
         t2 = timeit.default_timer()
         
-        print(f"Time to read {args.type} {label} file: {t2-t1}")
+        print(f"Time to read {args.core} {label} file: {t2-t1}")
 
-# with open(os.path.join(the_dir, f"{cape}/{outprefix}.pkl"), 'wb') as handle:
-#     pickle.dump(field, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label), 'wb') as handle:
+    pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-print("\n Squall_profiles wrote file: %s" % os.path.join(the_dir, f"{the_dir}/{outprefix}.pkl"))
+print("\n Squall_profiles wrote file: %s" % os.path.join(the_dir, '%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label)))
 #

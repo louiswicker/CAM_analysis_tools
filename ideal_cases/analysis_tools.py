@@ -125,24 +125,24 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
                             min_pix = 3, percentile=None, **kwargs):
     
     print(f'-'*120,'\n')
-    print(" Processing model run:  %s \n" % path)
+    print(f" Processing model run:  {path} \n")
 
     percent_var  = kwargs.get("percent_var", "dbz") 
 
     if percentile:
-        print(" Processing objects with variable: {percent_var} with percentile:  %f \n" % percentile)
+        print(f" Processing objects with variable: {percent_var} with percentile:  {percentile}\n")
     
 #---------------------------
     if model_type == 'fv3_solo' or model_type == 'solo':
     
         ds = read_solo_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p' ], ret_dbz=True)
+                                    'qv', 'qr', 'pert_p' ], ret_dbz=True)
         
         ds['thetae'] = compute_thetae(ds)
         
         if percentile:
-            cref_thresh = get_percentile_value(ds['dbz'].max(axis=1), percentile=percentile)
+            cref_thresh = get_percentile_value(ds[percent_var].max(axis=1), percentile=percentile)
             print("\n SOLO/FV3 CREF percentile value:  %f" % cref_thresh)
 
         profiles = compute_obj_profiles(ds,
@@ -158,12 +158,12 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_wrf_fields(path, file_pattern=file_pattern,
                              vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                   'qv', 'pert_p' ], ret_dbz=True)
+                                   'qv', 'qr', 'pert_p' ], ret_dbz=True)
                                                    
         ds['thetae'] = compute_thetae(ds)
 
         if percentile:
-            cref_thresh = get_percentile_value(ds['dbz'].max(axis=1), percentile=percentile)
+            cref_thresh = get_percentile_value(ds[percent_var].max(axis=1), percentile=percentile)
             print("\n WRF CREF percentile value:  %f" % cref_thresh)
 
         profiles = compute_obj_profiles(ds,
@@ -179,12 +179,12 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_cm1_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p'], ret_dbz=True)
+                                    'qv', 'qr', 'pert_p'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
         if percentile:
-            cref_thresh = get_percentile_value(ds['dbz'].max(axis=1), percentile=percentile)
+            cref_thresh = get_percentile_value(ds[percent_var].max(axis=1), percentile=percentile)
             print("\n CM1 CREF percentile value:  %f" % cref_thresh)
                                                     
         profiles = compute_obj_profiles(ds,
@@ -199,12 +199,12 @@ def generate_ideal_profiles(path, model_type='wrf', file_pattern=None,
         
         ds = read_mpas_fields(path, file_pattern=file_pattern,
                               vars=['hgt', 'pres', 'w', 'temp', 'buoy', 'theta', 'pert_t', 'pert_th',
-                                    'qv', 'pert_p'], ret_dbz=True)
+                                    'qv', 'qr', 'pert_p'], ret_dbz=True)
 
         ds['thetae'] = compute_thetae(ds)
         
         if percentile:
-            cref_thresh = get_percentile_value(ds['dbz'].max(axis=1), percentile=percentile)
+            cref_thresh = get_percentile_value(ds[percent_var].max(axis=1), percentile=percentile)
             print("\n CM1 CREF percentile value:  %f" % cref_thresh)
                                                     
         profiles = compute_obj_profiles(ds,
