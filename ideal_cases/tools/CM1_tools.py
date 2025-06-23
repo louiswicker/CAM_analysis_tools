@@ -206,8 +206,10 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['qr'] = ds.qr.values
 
         if key == 'den':
-            dsout['den'] = ds.prs.values / (_Rgas*ds.th.values*dsout['pii'])
-            dsout['row'] = dsout['den']
+            dsout['den'] = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']))
+                                            
+        if key == 'rho':
+            dsout['rho'] = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']*(1.0+_epsil*ds.qv.values)*(1.0 - ds.qc.values - ds.qr.values)))
             
         if key == 'temp':
             dsout['temp'] = ds.th.values*dsout['pii']
@@ -307,16 +309,21 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         
     if ret_beta:      # returning the acceleration from Beta, so divide by density
 
-        print(" Reading BETA from %s" % ret_beta)
+        print(f"Reading buoyancy acceleration file w_b_accel.nc from {path}")
 
-        dsbeta = xr.load_dataset(ret_beta, decode_times=False)
+        dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
 
-        dsout['beta'] = dsbeta.Soln_Beta.values / dsout['base_den']
+        zh = dsbeta.zh[0,:,0,0]
+
+        den3d = interp_z(dsout['base_den'], dsout['zc'], zh)
+
+        dsout['beta'] = dsbeta.beta.values / den3d
 
     print(f" Completed reading in:  {fpath}")
 
     if zinterp is None:
         pass
+        
     else:
         print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
 
@@ -326,10 +333,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             if dsout[key].ndim == dsout['zc'].ndim:
                 tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
                 dsout[key] = tmp
-
-        if ret_beta:
-           dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
-
+                
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
         print(f" Finished interp fields to single column z-grid:  {path} \n") 
 

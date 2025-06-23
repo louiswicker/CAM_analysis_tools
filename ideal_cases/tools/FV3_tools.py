@@ -248,6 +248,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'den':
             dsout['den'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
 
+        if key == 'rho':
+            dsout['rho'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
+
+            # ptop       = ds.phalf[0]
+            # phalf      = ds.phalf[1:]
+            # pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
+            # p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
+            # p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
+            # press_dry  = (pfull - (p_from_qv - p_from_qp))
+
+
         if key == 'pii':
             dsout['pii'] = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
 
@@ -344,15 +355,20 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
     if ret_beta:   # Beta is a force, divide by density to get accel (density is based on Tv)
 
-        den1d = ds.delp.values[0,::-1,0,0]/(_grav*ds.delz.values[0,::-1,0,0])
+        den_1d = ds.delp.values[0,::-1,0,0]/(_grav*ds.delz.values[0,::-1,0,0])
 
-        print(" Reading BETA from %s" % ret_beta)
+        print(f"Reading buoyancy acceleration file w_b_accel.nc from {path}")
 
-        dsbeta = xr.load_dataset(ret_beta, decode_times=False)
+        dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
 
-        den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsbeta.Soln_Beta.shape)
-        dsout['beta'] = dsbeta.Soln_Beta.values / den3d
-        
+        den3d = np.broadcast_to(den_1d[np.newaxis, :, np.newaxis, np.newaxis], ds.delp.shape)
+
+        zh = dsbeta.zh[0,:,0,0]
+
+        den3d = interp_z(den3d, dsout['zc'], zh)
+ 
+        dsout['beta'] = dsbeta.beta.values / den3d
+                
     print(f" Completed reading in:  {fpath}")
 
     if zinterp is None:
@@ -367,10 +383,13 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                 tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
                 dsout[key] = tmp
 
-        if ret_beta:
-           dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
+        if 'theta_IC' in variables:
+            dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
+            dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
+
 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+        
         print(f" Finished interp fields to single column z-grid:  {path} \n") 
 
     # if zinterp is None:

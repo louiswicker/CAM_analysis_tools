@@ -1423,9 +1423,9 @@ def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
     y[:] = model['yc'][:]
     t[:] = model['sec'][:]
     
-    for n in np.arange(model['den'].shape[0]):
+    for n in np.arange(model['rho'].shape[0]):
     
-        den[n,:,:,:] = model['den'][n,:,:,:]
+        den[n,:,:,:] = model['rho'][n,:,:,:]
         z[n,:,:,:]   = model['zc'][n,:,:,:]
     
     # print(ncfile)
