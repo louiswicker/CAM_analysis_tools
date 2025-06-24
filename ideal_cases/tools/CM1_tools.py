@@ -73,7 +73,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     else:
        fpath = os.path.join(path, file_pattern)
             
-    print(f" Now reading... {fpath}")
+    print(f"\n Now reading... {fpath}")
         
     try:
         ds = xr.load_dataset(fpath, decode_times=False)
@@ -309,17 +309,29 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         
     if ret_beta:      # returning the acceleration from Beta, so divide by density
 
-        print(f"Reading buoyancy acceleration file w_b_accel.nc from {path}")
+        # read in BETA
+        
+        print(f"\n Reading BETA from {os.path.join(path, 'w_b_accel.nc')}")
 
         dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
 
-        zh = dsbeta.zh[0,:,0,0]
+        # read forcing in as well.
 
-        den3d = interp_z(dsout['base_den'], dsout['zc'], zh)
+        print(f"\n Reading density from {os.path.join(path, 'total_den.nc')}")
 
-        dsout['beta'] = dsbeta.beta.values / den3d
+        dsrho = xr.load_dataset(os.path.join(path, "total_den.nc"), decode_times=False)
 
-    print(f" Completed reading in:  {fpath}")
+        den1d = dsrho.den.values[0,:,0,0]
+        den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsrho.den.shape)
+ 
+        dsout['beta']  = dsbeta.beta.values / den3d
+        dsout['rho_p'] = dsrho.den.values - den3d
+
+        dsrho.close()
+        dsbeta.close()
+
+    print(f"\n Completed reading in:  {fpath}")
+    print(f'-'*120)
 
     if zinterp is None:
         pass
@@ -335,8 +347,9 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                 dsout[key] = tmp
                 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
+        
         print(f" Finished interp fields to single column z-grid:  {path} \n") 
-
+        print(f'='*120)
     # Finish
 
     ds.close()

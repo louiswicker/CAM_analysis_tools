@@ -36,6 +36,7 @@ _Cv    = CP_AIR - RGAS
 _Cvv   = 1424.0
 _Lv    = 2.4665e6
 _Cpv   = 1885.0
+_epsil = 0.608
 
 
 _default_file = "atmos_hifreq.nc"
@@ -143,30 +144,37 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
     dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
     dsout['hgt'] = dsout['zc']
-                        
+
+# Some variables we need a lot...the pressure calcs are pulled from Harris Jupyter notebook
+    
+    ptop              = ds.phalf[0]
+    phalf             = ds.phalf[1:]
+    pfull             = (ds.delp.cumsum(dim='pfull') + ptop).values
+    dsout['prs_full'] = pfull[:,::-1,:,:]
+    p_from_qv         = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
+    p_from_qp         = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
+    dsout['prs_dry']  = (pfull - (p_from_qv - p_from_qp))[:,::-1,:,:]
+    dsout['pii']      = (dsout['prs_dry'] / 100000.)**0.286
+
     for key in variables:
 
         if key == 'theta': 
             dsout['theta'] = ds.theta.values[:,::-1,:,:]
             
         if key == 'temp': 
-            pii           = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            dsout['temp'] = pii*ds.theta.values[:,::-1,:,:]
+            dsout['temp'] = dsout['pii']*ds.theta.values[:,::-1,:,:]
             
         if key == 'pert_t': 
-            pii    = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             base_t = pii[0,:,-1,-1] * ds.theta.values[0,::-1,-1,-1]
-            dsout['pert_t'] = pii*ds.theta.values[:,::-1,:,:] \
+            dsout['pert_t'] = dsout['pii']*ds.theta.values[:,::-1,:,:] \
                             - np.broadcast_to(base_t[np.newaxis, :, np.newaxis, np.newaxis], ds.theta.shape) 
             
         if key == 'pert_th': 
-            pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             theta    = ds.theta.values[:,::-1,:,:]
             base_th  = theta[0,:,-1,-1]
             dsout['pert_th'] = theta - np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
 
         if key == 'buoy':
-            pii      = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
             theta    = ds.theta.values[:,::-1,:,:]
             base_th  = theta[0,:,-1,-1]
             base_th  = np.broadcast_to(base_th[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
@@ -208,8 +216,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['w'] = ds.w.values[:,::-1,:,:]
 
         if key == 'dzdt': 
-            tmp           = 0.5*(ds.dzdt.values[:,1:,:,:] + ds.dzdt.values[:,:-1,:,:])
-            dsout['dzdt'] = tmp[:,::-1,:,:]
+            dsout['dzdt'] = 0.5*(ds.dzdt.values[:,1:,:,:] + ds.dzdt.values[:,:-1,:,:])[:,::-1,:,:]
 
         if key == 'vvort': 
             dsout['vvort'] = ds.rel_vort.values[:,::-1,:,:]
@@ -219,19 +226,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
             ptop       = ds.phalf[0]
-            phalf      = ds.phalf[1:]
             pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
             pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
             p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
             p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
             
             dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
-#           pfull_ref  = np.broadcast_to(ds.nhpres[0,::-1,0,0].values[np.newaxis,:,np.newaxis,np.newaxis], ds.nhpres.shape)
             dsout['pert_p'] = ds.nhpres_pert[:,::-1,:,:].values 
 #           dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
 
         if key == 'base_p':
-            dsout['base_p'] = np.broadcast_to(ds.pfull.values[::-1][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+            dsout['base_p'] = np.broadcast_to(dsout['prs_dry'][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
 
         if key == 'dpdz':
             dsout['dpdz'] = ds.vaccel.values[:,::-1,:,:]
@@ -249,18 +254,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['den'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
 
         if key == 'rho':
-            dsout['rho'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
+            dsout['rho_star'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])  # simple way?
+            
+            qv                = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio  
+            theta             = ds.theta.values[:,::-1,:,:]
+            qcqr              = ds.clwmr.values[:,::-1,:,:] + ds.rwmr.values[:,::-1,:,:]
+            dsout['rho']      = dsout['prs_dry'] / (_Rgas * theta * dsout['pii'] * (1.0 + _epsil*qv)*(1.0 - qcqr) )
 
-            # ptop       = ds.phalf[0]
-            # phalf      = ds.phalf[1:]
-            # pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
-            # p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-            # p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
-            # press_dry  = (pfull - (p_from_qv - p_from_qp))
-
-
-        if key == 'pii':
-            dsout['pii'] = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
+            diff = dsout['rho_star'] - dsout['rho']
+            print(f"--->RHO DIFF:  {diff.max()} {diff.min()}")
 
         if key == 'accum_prec':
             try:
@@ -307,28 +309,21 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'thetae':
             print(" -->Computing ThetaE \n")
 
-            dsout['qv'] = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
-            pii           = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            dsout['temp'] = pii*ds.theta.values[:,::-1,:,:]
-            dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
+            dsout['qv']   = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
+            dsout['temp'] = dsout['pii']*ds.theta.values[:,::-1,:,:]
+            dsout['pres'] = dsout['prs_dry']
 
             dsout['thetae'] = compute_thetae(dsout)
 
         if key == 'total_e':
+            
             print(" -->Computing Total energy \n")
-
-            ptop        = ds.phalf[0]
-            phalf       = ds.phalf[1:]
-            pfull       = (ds.delp.cumsum(dim='pfull') + ptop).values
-            p_from_qv   = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-            p_from_qp   = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
-            dry_pres    = (pfull - (p_from_qv - p_from_qp))[:,::-1,:,:]
+            
             rv          = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])  # convert to mix-ratio
             rl          = (ds.rwmr.values + ds.clwmr.values)[:,::-1,:,:]
-            pii         = (ds.nhpres.values[:,::-1,:,:] / 100000.)**0.286
-            temperature = pii*ds.theta.values[:,::-1,:,:]
+            temperature = dsout['pii']*ds.theta.values[:,::-1,:,:]
 
-            dens        = dry_pres / (_Rgas * temperature )
+            dens        = dsout['prs_dry'] / (_Rgas * temperature )
 
             dsout['total_e'] = dens * ( _Cv*temperature + _Cvv*rv*temperature + _Cpv*rl*temperature - _Lv*rl + _grav*(1.0+rv+rl)*dsout['zc'] )
 
@@ -355,21 +350,33 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
     if ret_beta:   # Beta is a force, divide by density to get accel (density is based on Tv)
 
-        den_1d = ds.delp.values[0,::-1,0,0]/(_grav*ds.delz.values[0,::-1,0,0])
+        # qv                = ds.sphum.values[0,::-1,0,0]  / (1.0 + ds.sphum.values[0,::-1,0,0])  # convert to mix-ratio  
+        # den_base_state_1d = dsout['prs_dry'][0,::-1,0,0] / (_Rgas * ds.theta.values[0,::-1,0,0] * dsout['pii'][0,::-1,0,0] * (1.0 + _epsil * qv))
+        # den_base_state_3D = np.broadcast_to(den_base_state_1d[np.newaxis, :, np.newaxis, np.newaxis], ds.delp.shape)
 
-        print(f"Reading buoyancy acceleration file w_b_accel.nc from {path}")
+        # read in BETA
+        
+        print(f"\n Reading BETA from {os.path.join(path, 'w_b_accel.nc')}")
 
         dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
 
-        den3d = np.broadcast_to(den_1d[np.newaxis, :, np.newaxis, np.newaxis], ds.delp.shape)
+        # read forcing in as well.
 
-        zh = dsbeta.zh[0,:,0,0]
+        print(f"\n Reading density from {os.path.join(path, 'total_den.nc')}")
 
-        den3d = interp_z(den3d, dsout['zc'], zh)
+        dsrho = xr.load_dataset(os.path.join(path, "total_den.nc"), decode_times=False)
+
+        den1d = dsrho.den.values[0,:,0,0]
+        den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsrho.den.shape)
  
-        dsout['beta'] = dsbeta.beta.values / den3d
-                
-    print(f" Completed reading in:  {fpath}")
+        dsout['beta']  = dsbeta.beta.values / den3d
+        dsout['rho_p'] = dsrho.den.values - den3d
+
+        dsrho.close()
+        dsbeta.close()
+        
+    print(f"\n Completed reading in:  {fpath}")
+    print(f'-'*120)
 
     if zinterp is None:
         pass
@@ -387,10 +394,10 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
             dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
 
-
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
         
-        print(f" Finished interp fields to single column z-grid:  {path} \n") 
+        print(f" Finished interp fields to single column z-grid:  {path} \n")
+        print(f'='*120)
 
     # if zinterp is None:
     #     pass
@@ -432,9 +439,9 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
 #########################################################################################
 #
-# Routine for fast variable read 
+# Simple routine for fast read 
 #
-#
+
 def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
 
     from netCDF4 import MFDataset, Dataset
