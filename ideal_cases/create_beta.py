@@ -22,15 +22,18 @@ zlevels = 10.0 + 100.*np.arange(200)
 # Input directories
 
 dirs    = {
-           "solo": "/work/wicker/climate_runs/FV3_Solo/bubble/euler",
-           # "cm1":  "/work/wicker/climate_runs/cm1r20.3/run/bubble",
+           "solo": "/work/wicker/climate_runs/FV3_Solo/bubble/div",
+           "cm1":  "/work/wicker/climate_runs/cm1r20.3/run/bubble",
           }
 
 exp     = { "cm1": "3km", "solo": "3km" }
+
 exp     = { "solo": "3km" }
 
+allcape = ( "QV16", )
+
 allcape = ("QV13", "QV16")
-allcape = ( "QV13", )
+
 allshear = ( "S00", )
 
 for key in exp:
