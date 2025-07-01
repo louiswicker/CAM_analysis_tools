@@ -6,6 +6,7 @@ import glob as glob
 import os as os
 import glob
 import sys as sys
+from scipy.interpolate import CubicSpline
 
 from numpy.fft import fftn, ifftn, fftfreq
 
@@ -138,12 +139,13 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     dsout['yc'] = ds.grid_yt.values * 3000.
 
     ze = np.cumsum(ds.delz.values[:,::-1,:,:], axis=1)
+    dz = ds.delz.values[:,::-1,:,:]
 
-    dsout['ze']  = ze
-    dsout['zc']  = np.zeros_like(ze)
+    dsout['zc']           = np.zeros_like(ze)
     dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
-    dsout['zc'][:,1:,:,:] = 0.5*(ze[:,:-1,:,:] + ze[:,1:,:,:])
+    dsout['zc'][:,1:,:,:] = 0.5*(ze[:,1:,:,:] + ze[:,:-1,:,:])
     dsout['hgt'] = dsout['zc']
+    dsout['dz']  = dz
 
 # Some variables we need a lot...the pressure calcs are pulled from Harris Jupyter notebook
     
@@ -155,6 +157,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     p_from_qp         = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
     dsout['prs_dry']  = (pfull - (p_from_qv - p_from_qp))[:,::-1,:,:]
     dsout['pii']      = (dsout['prs_dry'] / 100000.)**0.286
+
+    dsout['ze']       = np.concatenate( (np.zeros((ze.shape[0], 1, ze.shape[2], ze.shape[3])), ze), axis=1)
 
     for key in variables:
 
@@ -197,14 +201,34 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                 dsout['ppedge'] = np.zeros_like(ds.nhpres)
 
         if key == 'dwdt':
-            try:
-                dsout['dwdt']   = ds.wforcn[:,::-1,:,:]
-            except:
                 dpstar           = ds.delp.values[:,::-1,:,:]
-                pnh              = ds.pnhpres.values[:,::-1,:,:]
+                pnh              = ds.nhpres_pert.values[:,::-1,:,:]
+
+                # spline = CubicSpline(dsout['zc'][10,:,31,31], pnh[10,:,31,31], bc_type=((2,0.0), (2,0.0)))
+                # pnh2   = spline.__call__(dsout['zc'][10,:,31,31], 1)
+                # pnh3   = spline.__call__(dsout['ze'][10,:,31,31], 0)
+
+                # for k in np.arange(49):
+                #     print(f" {k}  {pnh2[k]} {(pnh3[k+1]-pnh3[k])/(dsout['ze'][10,k+1,31,31]-dsout['ze'][10,k,31,31])}  ")
+
+                # Compute cubic spline with natural end-points
+            
                 dpnh             = np.zeros_like(pnh)
-                dpnh[:,1:-1,:,:] = 0.5*(pnh[:,2:,:,:] - pnh[:,:-2,:,:])
-                dsout['dwdt']    = -_grav*(dpnh / dpstar)
+
+                for t in np.arange(dsout['zc'].shape[0]):
+                    if t % 5 == 0: print(t)
+                    for j in np.arange(dsout['zc'].shape[2]):
+                        for i in np.arange(dsout['zc'].shape[3]):
+
+                            spline = CubicSpline(dsout['zc'][t,:,j,i], pnh[t,:,j,i], bc_type=((2,0.0), (2,0.0)))
+
+                            dpnh[t,:,j,i] = spline.__call__(dsout['zc'][t,:,j,i], 1)*dz[t,:,j,i]
+                            #dpnh[t,:,j,i] = spline.__call__(dsout['zc'][t,:,j,i], 1)
+                                        
+                print("dp_start", dpstar.max(), dpstar.min())
+                print("dp_nh", dpnh.max(), dpnh.min())
+                dsout['dwdt']    = - _grav*((dpnh / dpstar))
+                print(dpnh[10,:,31,31], dpnh[20,:,31,31])
 
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
@@ -235,6 +259,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             dsout['pert_p'] = ds.nhpres_pert[:,::-1,:,:].values 
 #           dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
 
+            variables = list(set(variables + ['pert_lucas']) )
+
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(dsout['prs_dry'][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
 
@@ -253,6 +279,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'den':
             dsout['den'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
 
+        if key == 'rwqv':
+            den           = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
+            qv            = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])
+            dsout['rwqv'] = den * ds.w.values[:,::-1,:,:] * qv
+         
+        if key == 'rw':
+            dsout['rw']   = den * ds.w.values[:,::-1,:,:]
+        
         if key == 'rho':
             dsout['rho_star'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])  # simple way?
             
@@ -263,6 +297,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
             diff = dsout['rho_star'] - dsout['rho']
             print(f"--->RHO DIFF:  {diff.max()} {diff.min()}")
+
+            variables = list(set(variables + ['rho_star']) )
 
         if key == 'accum_prec':
             try:
@@ -338,6 +374,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             with open(os.path.join(path, 'qv.bin'), 'rb') as f:
                 dsout['qv_IC'] = np.fromfile(f, dtype=np.float32).reshape((nx, ny, nz), order='F').transpose()
 
+            variables = list(set(variables + ['theta_IC','qv_IC']) )
+
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
@@ -374,6 +412,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
         dsrho.close()
         dsbeta.close()
+
+        variables = list(set(variables + ['beta','rho_p']) )
         
     print(f"\n Completed reading in:  {fpath}")
     print(f'-'*120)
@@ -386,46 +426,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
 
         for key in variables:
-            if dsout[key].ndim == dsout['zc'].ndim:
-                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
-                dsout[key] = tmp
-
-        if 'theta_IC' in variables:
-            dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
-            dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
+             if dsout[key].ndim == dsout['zc'].ndim:
+                try:
+                    tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
+                    dsout[key] = tmp
+                except ValueError:
+                    print(f" Interpolation could not be done on {key}, as shape is {dsout[key].shape}")
 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
         
         print(f" Finished interp fields to single column z-grid:  {path} \n")
         print(f'='*120)
-
-    # if zinterp is None:
-    #     pass
-    # else:
-    #     print(" Interpolating fields to single column z-grid:  %s \n" % path)
-
-    #     new_shape = [dsout['zc'].shape[0], zinterp.shape[0], dsout['zc'].shape[2], dsout['zc'].shape[3],]
-
-    #     for key in dsout:
-    #         if dsout[key].ndim == dsout['zc'].ndim and key != 'zc':
-    #             dsout[key] =  interp_z(dsout[key], dsout['zc'], zinterp)
-                
-    #     if ret_beta:
-    #        dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
-
-    #     if ret_beta:
-    #        dsout['beta'] = interp_z(dsout['beta'], dsout['zc'], zinterp)
-
-    #     if 'theta_IC' in variables:
-    #         dsout['theta_IC'] = interp_z(dsout['theta_IC'], dsout['zc'][0], zinterp)
-    #         dsout['qv_IC']    = interp_z(dsout['qv_IC'],    dsout['zc'][0], zinterp)
-
-    #     dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
-
-    #     print(" Finished interp fields to single column z-grid:  %s \n" % path)
-    #     print(f'-'*120)
-
-# Finish
 
     ds.close()
 
@@ -434,6 +445,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
     if ret_ds:
         return dsout, ds
+        
     else:
         return dsout
 

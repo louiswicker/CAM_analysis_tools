@@ -207,7 +207,15 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         if key == 'den':
             dsout['den'] = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']))
-                                            
+
+        if key == 'rwqv':
+            den           = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']))
+            w             = ds.winterp.values
+            dsout['rwqv'] = den * w *  ds.qv.values
+       
+        if key == 'rw':
+            dsout['rw']   = den * w
+                            
         if key == 'rho':
             dsout['rho'] = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']*(1.0+_epsil*ds.qv.values)*(1.0 - ds.qc.values - ds.qr.values)))
             
@@ -307,7 +315,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         dsout['cref'] = dsout['dbz'].max(axis=1)
         
-    if ret_beta:      # returning the acceleration from Beta, so divide by density
+    if ret_beta:      # returning the mass*acceleration from Beta, so divide by density
 
         # read in BETA
         
@@ -324,11 +332,13 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         den1d = dsrho.den.values[0,:,0,0]
         den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsrho.den.shape)
  
-        dsout['beta']  = dsbeta.beta.values / den3d
-        dsout['rho_p'] = dsrho.den.values - den3d
+        dsout['beta']  = (dsbeta.beta.values / den3d)
+        dsout['rho_p'] = (dsrho.den.values - den3d)
 
         dsrho.close()
         dsbeta.close()
+
+        variables = list(set(variables + ['beta','rho_p']) )
 
     print(f"\n Completed reading in:  {fpath}")
     print(f'-'*120)
@@ -343,8 +353,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         for key in variables:
             if dsout[key].ndim == dsout['zc'].ndim:
-                tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
-                dsout[key] = tmp
+                try:
+                    tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
+                    dsout[key] = tmp
+                except ValueError:
+                    print(f" Interpolation could not be done on {key}, as shape is {dsout[key].shape}")
                 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
         
