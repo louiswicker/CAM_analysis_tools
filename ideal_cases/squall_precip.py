@@ -15,6 +15,31 @@ from analysis_tools import read_solo_fields, read_wrf_fields, read_cm1_fields, r
 
 import argparse
 
+def chunck_precip(models, label, label2, chunk_size=4, axs=None, ylim=None, debug=False):
+
+    for key in models.keys():
+
+        inv = models[key][label]['accum_prec'][::-1]
+
+        if key == 'cm1':  # CM1 has data a the zero time
+            
+            precip_dt = inv[0:-1] - inv[1:]
+
+        elif key == 'rk2':  # CM1 has data a the zero time
+            break
+            
+        else:
+
+            add_zero_time = np.zeros(inv.shape[1:])
+
+            precip_dt = inv[0:-1] - inv[1:]
+
+            precip_dt = np.insert(precip_dt, 1, add_zero_time, axis=0)
+
+        precip_hour = [sum(precip_dt[i:i + chunk_size]) for i in range(0, len(precip_dt), chunk_size)]
+
+        precip_dt = np.array(precip_hour)
+
 # 1 km runs
 _cape  = ("QV12", "QV13", "QV16")
 _shear = ( "S06", "S18" )
@@ -51,6 +76,7 @@ if args.core == None:
     sys.exit()
 
 model = {}
+hour_precip = {}
 
 for sh in args.shear:
     for ca in args.cape:
@@ -70,6 +96,8 @@ for sh in args.shear:
 
         if args.core == 'cm1':
             model[label] = read_cm1_fields(file, file_pattern=None, vars=['accum_prec'])
+
+            
             
         if args.core == 'mpas':
             model[label] = read_mpas_fields(file, file_pattern=None, vars=['accum_prec'])
@@ -77,6 +105,8 @@ for sh in args.shear:
         t2 = timeit.default_timer()
 
         print(f"Time to read {args.core} {label} file: {t2-t1}")
+
+precip_dt = inv[0:-1] - inv[1:]
                 
 with open('%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label), 'wb') as handle:
     pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)

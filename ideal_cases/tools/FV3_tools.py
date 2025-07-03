@@ -7,6 +7,7 @@ import os as os
 import glob
 import sys as sys
 from scipy.interpolate import CubicSpline
+from para import fv3_spline_1d
 
 from numpy.fft import fftn, ifftn, fftfreq
 
@@ -147,7 +148,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     dsout['hgt'] = dsout['zc']
     dsout['dz']  = dz
 
-# Some variables we need a lot...the pressure calcs are pulled from Harris Jupyter notebook
+# Some variables we need a lot...the pressure calcs are pulled from L. Harris Jupyter notebook
     
     ptop              = ds.phalf[0]
     phalf             = ds.phalf[1:]
@@ -201,34 +202,22 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                 dsout['ppedge'] = np.zeros_like(ds.nhpres)
 
         if key == 'dwdt':
-                dpstar           = ds.delp.values[:,::-1,:,:]
-                pnh              = ds.nhpres_pert.values[:,::-1,:,:]
+            dpstar = ds.delp.values
+            dm2    = dpstar/_grav              
+            pe     = ds.nhpres_pert.values
+            pp     = np.zeros((pe.shape[0], pe.shape[1]+1, pe.shape[2], pe.shape[3]))
 
-                # spline = CubicSpline(dsout['zc'][10,:,31,31], pnh[10,:,31,31], bc_type=((2,0.0), (2,0.0)))
-                # pnh2   = spline.__call__(dsout['zc'][10,:,31,31], 1)
-                # pnh3   = spline.__call__(dsout['ze'][10,:,31,31], 0)
+            # Use FV3 solver fortran code to obtain pert nh-pressure on grid edges (fv3_spline_1d)
+            print(" Computing pert nh-pressure on grid edges\n")
+            for t in np.arange(dsout['zc'].shape[0]):
+                # if t % 5 == 0: print(t)
+                for j in np.arange(dsout['zc'].shape[2]):
+                    for i in np.arange(dsout['zc'].shape[3]):
 
-                # for k in np.arange(49):
-                #     print(f" {k}  {pnh2[k]} {(pnh3[k+1]-pnh3[k])/(dsout['ze'][10,k+1,31,31]-dsout['ze'][10,k,31,31])}  ")
+                        pp[t,:,j,i] = fv3_spline_1d(pe[t,:,j,i], dm2[t,:,j,i], pe.shape[1])
 
-                # Compute cubic spline with natural end-points
-            
-                dpnh             = np.zeros_like(pnh)
-
-                for t in np.arange(dsout['zc'].shape[0]):
-                    if t % 5 == 0: print(t)
-                    for j in np.arange(dsout['zc'].shape[2]):
-                        for i in np.arange(dsout['zc'].shape[3]):
-
-                            spline = CubicSpline(dsout['zc'][t,:,j,i], pnh[t,:,j,i], bc_type=((2,0.0), (2,0.0)))
-
-                            dpnh[t,:,j,i] = spline.__call__(dsout['zc'][t,:,j,i], 1)*dz[t,:,j,i]
-                            #dpnh[t,:,j,i] = spline.__call__(dsout['zc'][t,:,j,i], 1)
-                                        
-                print("dp_start", dpstar.max(), dpstar.min())
-                print("dp_nh", dpnh.max(), dpnh.min())
-                dsout['dwdt']    = - _grav*((dpnh / dpstar))
-                print(dpnh[10,:,31,31], dpnh[20,:,31,31])
+            dpnh = pp[:,1:,:,:] - pp[:,:-1,:,:] # compute pressure difference across cell
+            dsout['dwdt'] = ( - _grav*((dpnh / dpstar)))[:,::-1,:,:]  # compute accel from VPGF + BUOY
 
         if key == 'u': 
             dsout['u'] = ds.ugrd.values[:,::-1,:,:]
@@ -251,15 +240,16 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         if key == 'pert_p':    # code from L Harris Jupyter notebook
             ptop       = ds.phalf[0]
             pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
-            pfull_ref  = np.broadcast_to(pfull[0,:,0,0][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
+            pfull_1D   = ds.pfull.values
+            pfull_ref  = 100.0*np.broadcast_to(pfull_1D[np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
             p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
             p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
             
-            dsout['pert_lucas'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
-            dsout['pert_p'] = ds.nhpres_pert[:,::-1,:,:].values 
-#           dsout['pert_p']  = ds.nhpres[:,::-1,:,:].values - pfull_ref
+            dsout['pert_p2'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
+            dsout['pert_p']  = ds.nhpres_pert[:,::-1,:,:].values 
+            dsout['pert_p1'] = (pfull - pfull_ref)[:,::-1,:,:]
 
-            variables = list(set(variables + ['pert_lucas']) )
+            variables = list(set(variables + ['pert_p1', 'pert_p2']) )
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(dsout['prs_dry'][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)

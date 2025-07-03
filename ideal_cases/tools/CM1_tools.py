@@ -314,6 +314,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         dsout = compute_dbz(dsout, version=2)
         with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
         dsout['cref'] = dsout['dbz'].max(axis=1)
+
+        variables = list(set(variables + ['dbz']) )
         
     if ret_beta:      # returning the mass*acceleration from Beta, so divide by density
 
