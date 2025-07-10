@@ -11,6 +11,8 @@ from para import fv3_spline_1d
 
 from numpy.fft import fftn, ifftn, fftfreq
 
+from timeit import default_timer as timer
+
 from tools.cbook import Dict2Object, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
 
 import warnings
@@ -64,11 +66,13 @@ class DictAsObject:
 # READ SOLO FIELDS
 #
 
-def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False, 
+def read_solo_fields(path, vars = [''], file_pattern=None, 
                      ret_ds=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
         
     print(f'-'*120)
-    
+
+    start0 = timer()
+
     if file_pattern == None:
         
         # see if the path has the filename on the end....
@@ -81,11 +85,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
             
     print(f" Now reading... {fpath}")
         
+    start = timer()   # time the IO part
     try:
-        ds = xr.load_dataset(fpath, decode_times=False)
+        ds = xr.load_dataset(fpath, decode_times=False)        
+        ds.load()
     except:
         print(f"Cannot find file in {fpath} exiting"  % path)
         sys.exit(-1)
+
+    print(f"\n Time for xarray to load:  {fpath}: {timer() - start:.2f} sec ")
 
     # Variable list processing
 
@@ -107,28 +115,9 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
     # storage bin
 
     dsout = {}
-        
-    # figure out if we need dbz to be computed
-    
-#   if ret_dbz:
-#   
-#       dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
-#   
-#       if os.path.exists(dbz_filename):
-#           print("\n Reading external DBZ file: %s\n" % dbz_filename)
-#           with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
-#               dsout['dbz'] = np.load(f)
-#               
-#           dsout['cref'] = dsout['dbz'].max(axis=1)
-#
-#           ret_dbz = False
-#                       
-#          #for n in np.arange(dsout['dbz'].shape[0]):
-#          #    print(n, dsout['dbz'][n].max())
-#           
-#       else:
-#           variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
 
+    start = timer()
+        
 # Add two time variables
 
     dsout['sec'] = ds.time.values[:]
@@ -366,12 +355,13 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
 
             variables = list(set(variables + ['theta_IC','qv_IC']) )
 
+        if key == 'dbz':
+            dsout['dbz']  = ds['reflectivity'].values[:,::-1,:,:]
+            dsout['cref'] = dsout['dbz'].max(axis=1)
+
     if unit_test:
         write_Z_profile(dsout, model='SOLO', vars=variables, loc=(10,-1,1))
         
-    if ret_dbz:   
-        dsout['dbz']  = ds['reflectivity'].values[:,::-1,:,:]
-        dsout['cref'] = dsout['dbz'].max(axis=1)
 
 #       dsout = compute_dbz(dsout, version=2)
 #       with open(dbz_filename, 'wb') as f:  np.save(f, dsout['dbz'])
@@ -404,16 +394,17 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         dsbeta.close()
 
         variables = list(set(variables + ['beta','rho_p']) )
-        
-    print(f"\n Completed reading in:  {fpath}")
-    print(f'-'*120)
+  
+    print(f"\n Completed reading in:  {fpath} --> time to process variables: {timer() - start:.2f} sec ")
 
     if zinterp is None:
         pass
     else:
         print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
+        
+        start = timer()
 
-        new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
+        new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3]]
 
         for key in variables:
              if dsout[key].ndim == dsout['zc'].ndim:
@@ -424,11 +415,13 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
                     print(f" Interpolation could not be done on {key}, as shape is {dsout[key].shape}")
 
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
-        
-        print(f" Finished interp fields to single column z-grid:  {path} \n")
-        print(f'='*120)
+
+        print(f" Interpolated completed, Total CPU:  {path}: {timer()- start:.2f} sec \n")  
 
     ds.close()
+
+    print(f" Total time for processing file:  {path}: --> {timer() - start0:.2f} sec \n") 
+    print(f'-'*120)
 
     if ret_obj:
         dsout = Dict2Object(dsout)
@@ -438,6 +431,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None, ret_dbz=False,
         
     else:
         return dsout
+
 
 #########################################################################################
 #
@@ -463,7 +457,7 @@ def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
     print(f" Now reading... {fpath}")
         
     try:
-        fobj = Dataset(fpath)
+        fobj = Dataset(fpath).variables
     except:
         print(f"Cannot find the file in {fpath}, exiting")
         sys.exit(-1)
@@ -474,15 +468,15 @@ def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
 
 # Add two time variables
 
-    dsout['sec'] = fobj.variables['time'][:]
+    dsout['sec'] = fobj['time'][:]
     dsout['min'] = dsout['sec']/60.
 
 # Always add coordinates to data structure
 
-    dsout['xc'] = fobj.variables['grid_xt'][...] * 3000.
-    dsout['yc'] = fobj.variables['grid_yt'][...] * 3000.
+    dsout['xc'] = fobj['grid_xt'][...] * 3000.
+    dsout['yc'] = fobj['grid_yt'][...] * 3000.
 
-    ze = np.cumsum(fobj.variables['delz'][:,::-1,:,:], axis=1)
+    ze = np.cumsum(fobj['delz'][:,::-1,:,:], axis=1)
 
     dsout['ze']  = ze
     dsout['zc']  = np.zeros_like(ze)
@@ -491,7 +485,61 @@ def read_solo_w(path, var='w', file_pattern=None, netCDF=False):
     dsout['hgt'] = dsout['zc']
 
     if var == 'w': 
-            dsout['w'] = fobj.variables['w'][:,::-1,:,:]
+            dsout['w'] = fobj['w'][:,::-1,:,:]
+
+    print(f" Completed reading: {fpath} \n")
+    
+    return DictAsObject(dsout)
+
+def read_solo_w2(path, var='w', file_pattern=None, netCDF=False):
+
+    from netCDF4 import MFDataset, Dataset
+
+    print(f'-'*120)
+    
+    if file_pattern == None:
+        
+        # see if the path has the filename on the end....
+        
+        if os.path.basename(path)[:-3] != ".nc":
+            fpath = os.path.join(path, _default_file)
+
+    else:
+       fpath = os.path.join(path, file_pattern)
+            
+    print(f" Now reading... {fpath}")
+        
+    try:
+        fobj = xr.load_dataset(fpath, chunks="auto", decode_times=False)
+    except:
+        print(f"Cannot find the file in {fpath}, exiting")
+        sys.exit(-1)
+            
+# storage bin
+
+    dsout = {}
+
+# Add two time variables
+
+    dsout['sec'] = fobj['time'][:]
+    dsout['min'] = dsout['sec']/60.
+
+# Always add coordinates to data structure
+
+    dsout['xc'] = fobj['grid_xt'][...] * 3000.
+    dsout['yc'] = fobj['grid_yt'][...] * 3000.
+
+    ze = np.cumsum(fobj.delz.values[:,::-1,:,:], axis=1)
+    dz = fobj.delz.values[:,::-1,:,:]
+
+    dsout['zc']           = np.zeros_like(ze)
+    dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
+    dsout['zc'][:,1:,:,:] = 0.5*(ze[:,1:,:,:] + ze[:,:-1,:,:])
+    dsout['hgt'] = dsout['zc']
+    dsout['dz']  = dz
+
+    if var == 'w': 
+            dsout['w'] = fobj['w'][:,::-1,:,:]
 
     print(f" Completed reading: {fpath} \n")
     

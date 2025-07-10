@@ -8,6 +8,17 @@ import pickle
 import time
 import traceback
 
+import logging
+
+from multiprocessing.pool import ThreadPool as Pool
+from functools import partial
+
+from timeit import default_timer as timer
+
+from scipy.interpolate import interp1d
+
+from numba import njit, prange
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -20,6 +31,8 @@ warnings.filterwarnings("ignore")
     
 _nthreads = 2
 
+_fill_value = np.nan
+
 _Rgas       = 287.04
 _gravity    = 9.806
 _grav       = 9.806
@@ -29,6 +42,43 @@ _rhor  = 1.0e3
 _vconr = 2503.23638966667
 _normr = 25132741228.7183
 _qmin  = 1.0e-12
+
+#--------------------------------------------------------------------------------------------------
+@njit
+def interpolate_1D(ij, array2D, z2D, z1D):
+
+    # if ij % 32 == 0: print(ij)
+
+    nt, nz, npoints = array2D.shape
+    nz_target       = len(z1D)
+
+    dij = array2D[:,:,ij]
+    zij = z2D[:,:,ij]
+
+    data_interp = np.full((nt, nz_target), _fill_value, dtype=np.float32)
+
+    for t in range(nt):
+        data_interp[t,:] = np.interp(z1D, zij[t], dij[t])
+        
+    return data_interp.reshape(nt*nz_target)
+
+@njit
+def interpolate_3D(n, array3D, z3D, z1D):
+
+    nz, ny, nx = array3D[n].shape
+    nz_target  = len(z1D)
+    npoints    = ny * nx
+
+    data_interp = np.full((nz_target, ny, nx), _fill_value, dtype=np.float32)
+
+    dkji = array3D[n]
+    zkji = z3D[n]
+
+    for i in range(nx):
+        for j in range(ny):
+            data_interp[:,j,i] = np.interp(z1D, zkji[:,j,i], dkji[:,j,i])
+        
+    return data_interp
 
 #--------------------------------------------------------------------------------------------------
 def open_mfdataset_list(data_dir, pattern):
@@ -86,25 +136,7 @@ def get_percentile_value(field, percentile=0.99):
     print("\n Percentile:  %f  Index:  %d   Value:  %f" % (percentile, idx, sorted[idx]) )
     
     return sorted[idx]
-#----------------------------------------------------------------------------
-#
 
-def compute_ppez(state):
-
-    """
-
-       Compute the perturbation pressure as it is computed at the top
-       of the SIM1 and SIM nh_utils.F90 solvers.  
-
-       The computation is in two stages:
-
-       1) compute pp from theta field and by subtracting out the h-press
-
-       2) solve tridiagonal system for parabolic/cubic interpolation
-
-       returns the ppe on edge of domain
-
-    """
 #----------------------------------------------------------------------------
 #
 
@@ -182,9 +214,11 @@ def interp_z(data, zin, zout):
     """
     """
 
+    from concurrent.futures import ProcessPoolExecutor
+
     debug = False
 
-    start = time.time()
+    start = timer()
 
     ndim = data.ndim
     cdim = zin.ndim
@@ -227,24 +261,39 @@ def interp_z(data, zin, zout):
                 dinterp[:,j,i] = np.interp(zout, zND[:,j,i], data[:,j,i])
 
     if ndim == 4:
-
+        
         if cdim == 1:
-            zND = np.broadcast_to(zin[np.newaxis, :, np.newaxis, np.newaxis], data.shape)
+            zND = np.broadcast_to(zin[:, np.newaxis, np.newaxis], data.shape[1:])
         elif cdim == ndim:
             zND = zin
         else:
             print("--> INTERP_Z input z array must be 1D or same DIM as data array\n")
 
-        dinterp = np.zeros((data.shape[0],len(zout),data.shape[2],data.shape[3]),dtype=np.float32)
+        nt, nz, ny, nx = data.shape
+        
+        # npoints = nx*ny
 
-        for t in np.arange(data.shape[0]):
-            for j in np.arange(data.shape[2]):
-                for i in np.arange(data.shape[3]):
-                    dinterp[t,:,j,i] = np.interp(zout, zND[t,:,j,i], data[t,:,j,i])
+        # data2D = data.reshape(nt,nz,npoints)
+        # z2D    = zND.reshape(nt,nz,npoints)
 
-    if debug:  print("\n Total time taken for interpolation: ", time.time() - start)
+        # partial_process = partial(interpolate_1D, array2D=data2D, z2D=z2D, z1D=zout)
 
-    return dinterp
+        # with Pool(processes=_nthreads) as pool:
+        #     result = pool.map(partial_process, list(range(npoints)))
+
+        partial_process = partial(interpolate_3D, array3D=data, z3D=zND, z1D=zout)
+
+        with Pool(processes=_nthreads) as pool:
+            result = pool.map(partial_process, list(range(nt)))
+
+        if debug:  print(f"\n Total time taken for interpolation:  {timer()- start:.2f} sec ")
+    
+    # array = np.array(result).transpose()
+
+    # return array.reshape(nt,len(zout),ny,nx)
+
+        return np.stack(result)
+
 
 #--------------------------------------------------------------------------------------------------
 #

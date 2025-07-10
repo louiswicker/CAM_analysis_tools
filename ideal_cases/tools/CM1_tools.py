@@ -5,9 +5,15 @@ import os as os
 import glob
 import sys as sys
 
+import logging
+
 from numpy.fft import fft2, ifft2, fftfreq
 
+from scipy.interpolate import RegularGridInterpolator
+
 from tools.cbook import Dict2Object, open_mfdataset_list, interp_z, write_Z_profile, compute_dbz, compute_thetae
+
+from timeit import default_timer as timer
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -59,8 +65,10 @@ class DictAsObject:
 #
 
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
-                    ret_dbz=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
+                    ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
  
+    start0 = timer()
+    
     print(f'-'*120)
     
     if file_pattern == None:
@@ -74,12 +82,16 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
        fpath = os.path.join(path, file_pattern)
             
     print(f"\n Now reading... {fpath}")
-        
+
+    start = timer()   # time the IO part
     try:
         ds = xr.load_dataset(fpath, decode_times=False)
+        ds.load()
     except:
         print(f"Cannot find file in {fpath} exiting")
         sys.exit(-1)
+    
+    print(f"\n Time for xarray to load:  {fpath}: {timer() - start:.2f} sec ")
 
     # Variable list processing
     
@@ -101,15 +113,17 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     # storage bin
 
     dsout = {}
-        
+
+    start = timer()   # time the IO part
+    
     # figure out if we need dbz to be computed
     
-    if ret_dbz:
+    if 'dbz' in variables:
     
         dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
     
         if os.path.exists(dbz_filename):
-            print("\n Reading external DBZ file: %s\n" % dbz_filename)
+            print(f"\n Reading external DBZ file: {dbz_filename}")
             with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
                 dsout['dbz'] = np.load(f)
                 
@@ -117,11 +131,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
             ret_dbz = False
                         
-            # for n in np.arange(dsout['dbz'].shape[0]):
-            #     print(n, dsout['dbz'][n].max())
+            variables = list(set(variables + ['dbz']) )
             
         else:
-            variables = list(set(variables + ['temp','pres', 'qv', 'qc', 'qr']) )
+            variables = list(set(variables + ['temp', 'pres', 'qv', 'qc', 'qr']) )
+            ret_dbz = True
 
 # Add two time variables
 
@@ -130,8 +144,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
 # Add some spatial info
 
-    dsout['xc']  = 1000*ds.xh.values
-    dsout['yc']  = 1000*ds.yh.values
+    dsout['xc']  = ds.xh.values * 1000.
+    dsout['yc']  = ds.yh.values * 1000.
     dsout['zc']  = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
     dsout['ze']  = np.broadcast_to(1000.*ds.zf.values[np.newaxis, :, np.newaxis, np.newaxis], ds.w.shape)
     dsout['hgt'] = np.broadcast_to(1000.*ds.zh.values[np.newaxis, :, np.newaxis, np.newaxis], ds.prs.shape)
@@ -148,6 +162,10 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 # Some variables we need a lot...
 
     dsout['pii'] = (ds.prs.values / _p00 )**_rdocp
+
+    print(f"\n Completed setup for:  {fpath} --> time to initialize variables: {timer() - start:.2f} sec ")
+
+    start = timer()   
 
 # Now add variables to dsout created in variable list
 
@@ -341,9 +359,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         dsbeta.close()
 
         variables = list(set(variables + ['beta','rho_p']) )
-
-    print(f"\n Completed reading in:  {fpath}")
-    print(f'-'*120)
+    
+    print(f"\n Completed reading in:  {fpath} --> time to process variables: {timer()  - start:.2f} sec ")
 
     if zinterp is None:
         pass
@@ -351,23 +368,29 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     else:
         print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
 
-        new_shape = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3],]
+        start = timer()
+
+        
 
         for key in variables:
-            if dsout[key].ndim == dsout['zc'].ndim:
+             if dsout[key].ndim == dsout['zc'].ndim:
                 try:
                     tmp =  interp_z(dsout[key], dsout['zc'], zinterp)
                     dsout[key] = tmp
                 except ValueError:
                     print(f" Interpolation could not be done on {key}, as shape is {dsout[key].shape}")
-                
+            
+        new_shape   = [dsout['zc'].shape[0],zinterp.shape[0],dsout['zc'].shape[2],dsout['zc'].shape[3]]
         dsout['zc'] = np.broadcast_to(zinterp[np.newaxis, :, np.newaxis, np.newaxis], new_shape)
         
-        print(f" Finished interp fields to single column z-grid:  {path} \n") 
-        print(f'='*120)
+        print(f" Interpolated completed, Total CPU:  {path}: {timer() - start:.2f} sec \n") 
+                
     # Finish
 
     ds.close()
+
+    print(f" Total time for processing file:  {path}: --> {timer() - start0:.2f} sec \n") 
+    print(f'-'*120)
 
     if ret_obj:
         dsout = Dict2Object(dsout)
