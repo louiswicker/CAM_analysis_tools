@@ -29,7 +29,7 @@ warnings.filterwarnings("ignore")
 #     warnings.simplefilter("ignore")
 #     fxn()
     
-_nthreads = 2
+_nthreads = 1
 
 _fill_value = np.nan
 
@@ -80,6 +80,46 @@ def interpolate_3D(n, array3D, z3D, z1D):
         
     return data_interp
 
+#--------------------------------------------------------------------------------------------------
+@njit
+def interp1d_NUM(z1D, z_col, d_col, fill_value=_fill_value):
+    
+    nz_target = len(z1D)
+    nz = len(z_col)
+    out = np.full(nz_target, fill_value, dtype=np.float32)
+
+    for k in range(nz_target):
+        z = z1D[k]
+
+        # Handle out-of-bounds
+        if z < z_col[0] or z > z_col[-1]:
+            out[k] = _fill_value
+            continue
+
+        # Find the interval (z_col[i] <= z < z_col[i+1])
+        for i in range(nz - 1):
+            if z_col[i] <= z <= z_col[i+1]:
+                t = (z - z_col[i]) / (z_col[i+1] - z_col[i])
+                out[k] = d_col[i] + t * (d_col[i+1] - d_col[i])
+                break
+
+    return out
+    
+@njit(parallel=True)
+def interpolate_3D_NUM(array3D, z3D, z1D, n, fill_value=_fill_value):
+    
+    nz_target = len(z1D)
+    nz, ny, nx = array3D.shape[1:]  # skip time dimension
+
+    result = np.full((nz_target, ny, nx), fill_value, dtype=np.float32)
+
+    for j in prange(ny):
+        for i in range(nx):
+            z_col = z3D[n, :, j, i]
+            d_col = array3D[n, :, j, i]
+            result[:, j, i] = interp1d_NUM(z1D, z_col, d_col, _fill_value)
+    return result
+    
 #--------------------------------------------------------------------------------------------------
 def open_mfdataset_list(data_dir, pattern):
 
@@ -270,6 +310,13 @@ def interp_z(data, zin, zout):
             print("--> INTERP_Z input z array must be 1D or same DIM as data array\n")
 
         nt, nz, ny, nx = data.shape
+
+        dinterp = np.empty((nt,len(zout),ny,nx), dtype=np.float32)
+
+        for n in np.arange(nt):
+            dinterp[n] = interpolate_3D_NUM(data, zND, zout, n, _fill_value)
+
+        return dinterp
         
         # npoints = nx*ny
 
@@ -281,10 +328,10 @@ def interp_z(data, zin, zout):
         # with Pool(processes=_nthreads) as pool:
         #     result = pool.map(partial_process, list(range(npoints)))
 
-        partial_process = partial(interpolate_3D, array3D=data, z3D=zND, z1D=zout)
+        # partial_process = partial(interpolate_3D, array3D=data, z3D=zND, z1D=zout)
 
-        with Pool(processes=_nthreads) as pool:
-            result = pool.map(partial_process, list(range(nt)))
+        # with Pool(processes=_nthreads) as pool:
+        #     result = pool.map(partial_process, list(range(nt)))
 
         if debug:  print(f"\n Total time taken for interpolation:  {timer()- start:.2f} sec ")
     
@@ -292,7 +339,7 @@ def interp_z(data, zin, zout):
 
     # return array.reshape(nt,len(zout),ny,nx)
 
-        return np.stack(result)
+        # return np.stack(result)
 
 
 #--------------------------------------------------------------------------------------------------

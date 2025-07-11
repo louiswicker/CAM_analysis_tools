@@ -120,11 +120,11 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
     
     if 'dbz' in variables:
     
-        dbz_filename = os.path.join(os.path.dirname(path), 'dbz.npz')
+        dbz_filename = os.path.join(path, 'dbz.npz')
     
         if os.path.exists(dbz_filename):
             print(f"\n Reading external DBZ file: {dbz_filename}")
-            with open(os.path.join(os.path.dirname(path), 'dbz.npz'), 'rb') as f:
+            with open(dbz_filename, 'rb') as f:
                 dsout['dbz'] = np.load(f)
                 
             dsout['cref'] = dsout['dbz'].max(axis=1)
@@ -136,6 +136,8 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         else:
             variables = list(set(variables + ['temp', 'pres', 'qv', 'qc', 'qr']) )
             ret_dbz = True
+    else:
+        ret_dbz = False
 
 # Add two time variables
 
