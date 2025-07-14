@@ -1,0 +1,17 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module para ! in 
+    interface  ! in :para
+        subroutine fv3_spline_1d(pe,dm2,km,pp) ! in :para:para.f90
+            real dimension(km),intent(in) :: pe
+            real dimension(km),intent(in),depend(km) :: dm2
+            integer, optional,intent(in),check(shape(pe, 0) == km),depend(pe) :: km=shape(pe, 0)
+            real dimension(1 + km),intent(out),depend(km) :: pp
+        end subroutine fv3_spline_1d
+    end interface 
+end python module para
+
+! This file was auto-generated with f2py (version:1.26.0).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e
