@@ -67,7 +67,8 @@ class DictAsObject:
 #
 
 def read_solo_fields(path, vars = [''], file_pattern=None, 
-                     ret_ds=False, ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
+                     ret_ds=False, ret_obj=False, ret_beta=False, 
+                     ret_pb=False, zinterp=None, unit_test=False):
         
     print(f'-'*120)
 
@@ -87,8 +88,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
         
     start = timer()   # time the IO part
     try:
-        ds = xr.load_dataset(fpath, decode_times=False)        
-        ds.load()
+        ds = xr.open_dataset(fpath, decode_times=False)        
     except:
         print(f"Cannot find file in {fpath} exiting"  % path)
         sys.exit(-1)
@@ -134,8 +134,8 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
     dsout['zc']           = np.zeros_like(ze)
     dsout['zc'][:,0,:,:]  = 0.5*ze[:,0,:,:]
     dsout['zc'][:,1:,:,:] = 0.5*(ze[:,1:,:,:] + ze[:,:-1,:,:])
-    dsout['hgt'] = dsout['zc']
-    dsout['dz']  = dz
+    dsout['hgt']          = dsout['zc']
+    dsout['dz']           = dz
 
 # Some variables we need a lot...the pressure calcs are pulled from L. Harris Jupyter notebook
     
@@ -143,9 +143,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
     phalf             = ds.phalf[1:]
     pfull             = (ds.delp.cumsum(dim='pfull') + ptop).values
     dsout['prs_full'] = pfull[:,::-1,:,:]
-    p_from_qv         = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-    p_from_qp         = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
-    dsout['prs_dry']  = (pfull - (p_from_qv - p_from_qp))[:,::-1,:,:]
+    dsout['prs_dry']  = pfull[:,::-1,:,:]
     dsout['pii']      = (dsout['prs_dry'] / 100000.)**0.286
 
     dsout['ze']       = np.concatenate( (np.zeros((ze.shape[0], 1, ze.shape[2], ze.shape[3])), ze), axis=1)
@@ -177,7 +175,14 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
             base_qv  = qv[0,:,-1,-1]
             base_qv  = np.broadcast_to(base_qv[np.newaxis, :, np.newaxis, np.newaxis], theta.shape) 
             pert_qv  = qv - base_qv
+            qcqr          = ds.clwmr.values[:,::-1,:,:] + ds.rwmr.values[:,::-1,:,:]
             dsout['buoy'] = _grav*(pert_th/base_th + 0.61*pert_qv - ds.clwmr.values[:,::-1,:,:] - ds.rwmr.values[:,::-1,:,:])
+            dsout['dbuoy']= _grav*(pert_th/base_th + 0.61*pert_qv)
+            
+            den           = dsout['prs_dry'] / (_Rgas * theta * dsout['pii'] * (1.0 + _epsil*qv)*(1.0 - qcqr) )
+            dsout['rbuoy'] = dsout['buoy'] * den
+
+            variables = list(set(variables + ['dbuoy', 'rbuoy']))
             
         if key == 'dpstar':
             dsout['dpstar'] = ds.delp.values[:,::-1,:,:]
@@ -190,29 +195,49 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
             except:
                 dsout['ppedge'] = np.zeros_like(ds.nhpres)
 
-        if key == 'dwdt':
-            dpstar = ds.delp.values
-            dm2    = dpstar/_grav              
-            pe     = ds.nhpres_pert.values
-            pp     = np.zeros((pe.shape[0], pe.shape[1]+1, pe.shape[2], pe.shape[3]))
+        if key == 'wrhs':
+            ptop          = ds.phalf[0]*100.
+            delp_m_qp     = ds.delp * (1.0 - ds.qp)
+            peg           = np.zeros((ds.dims['time'],ds.dims['phalf'],ds.dims['grid_yt'],ds.dims['grid_xt']),)
+            peg[:,0,:,:]  = ptop
+            peg[:,1:,:,:] = (delp_m_qp.cumsum(dim='pfull')+ptop).values
+            peglog        = np.log(peg)
+            pm2           = ((peg[:,1:,:,:] - peg[:,:-1,:,:]) / (peglog[:,1:,:,:] - peglog[:,:-1,:,:]))[:,::-1,:,:]
+
+            pNH_interp    = np.exp(interp_z(np.log(ds.nhpres.values[:,::-1,:,:]), dsout['zc'], zinterp))
+            pm2_interp    = np.exp(interp_z(np.log(pm2), dsout['zc'], zinterp))
+            rNH_1D        = pm2_interp[0,:,0,0]
+            pert_p        = pNH_interp - rNH_1D[None, :, None, None]
+
+            dm2           = interp_z(delp_m_qp.values[:,::-1,:,:], dsout['zc'], zinterp) / _grav
+            dz            = interp_z(dsout['ze'][:,1:,:,:] - dsout['ze'][:,:-1,:,:], dsout['zc'], zinterp)
+
+            pe            = np.zeros((ds.dims['time'], dm2.shape[1]+1, ds.dims['grid_yt'], ds.dims['grid_xt']))
+
+            print(" Checking shape of Pe\n", pe.shape)
 
             # Use FV3 solver fortran code to obtain pert nh-pressure on grid edges (fv3_spline_1d)
             print(" Computing pert nh-pressure on grid edges\n")
+            
             for t in np.arange(dsout['zc'].shape[0]):
                 # if t % 5 == 0: print(t)
                 for j in np.arange(dsout['zc'].shape[2]):
                     for i in np.arange(dsout['zc'].shape[3]):
 
-                        pp[t,:,j,i] = fv3_spline_1d(pe[t,:,j,i], dm2[t,:,j,i], pe.shape[1])
+                        pe[t,:,j,i] = fv3_spline_1d(pert_p[t,:,j,i], dm2[t,:,j,i], pert_p.shape[1])
 
-            dpnh = pp[:,1:,:,:] - pp[:,:-1,:,:] # compute pressure difference across cell
-            dsout['dwdt'] = ( - _grav*((dpnh / dpstar)))[:,::-1,:,:]  # compute accel from VPGF + BUOY
+            dp             = pe[:,1:,:,:] - pe[:,:-1,:,:] # compute pressure difference across cell
+            dsout['wrhs']  = ( -  dp / dm2)
+            dsout['wrhs2'] = ( -  dp / dm2)
+            
+            dsout['wrhs_dp'] = pe[:,:-1,:,:]
+            dsout['wrhs_dm'] = dm2
 
         if key == 'u': 
-            dsout['u'] = ds.ugrd.values[:,::-1,:,:]
+            dsout['u'] = ds.ucomp.values[:,::-1,:,:]
 
         if key == 'v': 
-            dsout['v'] = ds.vgrd.values[:,::-1,:,:]
+            dsout['v'] = ds.vcomp.values[:,::-1,:,:]
 
         if key == 'w': 
             dsout['w'] = ds.w.values[:,::-1,:,:]
@@ -227,18 +252,45 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
             dsout['pres'] = ds.nhpres.values[:,::-1,:,:]
 
         if key == 'pert_p':    # code from L Harris Jupyter notebook
-            ptop       = ds.phalf[0]
-            pfull      = (ds.delp.cumsum(dim='pfull') + ptop).values
-            pfull_1D   = ds.pfull.values
-            pfull_ref  = 100.0*np.broadcast_to(pfull_1D[np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
-            p_from_qv  = ((ds.sphum)*ds.delp).cumsum(dim='pfull').values
-            p_from_qp  = ds.rwmr.cumsum(dim='pfull').values + ds.clwmr.cumsum(dim='pfull').values
-            
-            dsout['pert_p2'] = (pfull - pfull_ref - (p_from_qv - p_from_qp))[:,::-1,:,:]
-            dsout['pert_p']  = ds.nhpres_pert[:,::-1,:,:].values 
-            dsout['pert_p1'] = (pfull - pfull_ref)[:,::-1,:,:]
+            ptop       = ds.phalf[0]*100.
+            delp_m_qp  = ds.delp * (1.0 - ds.clwmr - ds.rwmr)
+            #delp_m_qp  = ds.delp 
 
-            variables = list(set(variables + ['pert_p1', 'pert_p2']) )
+            peg           = np.zeros((ds.dims['time'],ds.dims['phalf'],ds.dims['grid_yt'],ds.dims['grid_xt']),)
+            peg[:,0,:,:]  = ptop
+            peg[:,1:,:,:] = (delp_m_qp.cumsum(dim='pfull')+ptop).values
+            peglog        = np.log(peg)
+            pm2           = ((peg[:,1:,:,:] - peg[:,:-1,:,:]) / (peglog[:,1:,:,:] - peglog[:,:-1,:,:]))[:,::-1,:,:]
+                        
+            p_from_qv  = interp_z(((ds.sphum)*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:], dsout['zc'], zinterp )            
+            p_from_qp  = ds.qp.cumsum(dim='pfull') # already * dpstar
+            p_from_qn  = ds.qn.cumsum(dim='pfull') # already * dpstar
+            # p_from_qp  = interp_z((ds.clwmr*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:], dsout['zc'], zinterp )  # already * dpstar
+            # p_from_qn  = interp_z((ds.rwmr*ds.delp).cumsum(dim='pfull').values[:,::-1,:,:], dsout['zc'], zinterp )  # already * dpstar
+
+            p_from_liq = p_from_qp.values[:,::-1,:,:] # + p_from_qn
+
+            pNH_interp       = np.exp(interp_z(np.log(ds.nhpres.values[:,::-1,:,:]), dsout['zc'], zinterp))
+            pm2_interp       = np.exp(interp_z(np.log(pm2), dsout['zc'], zinterp))
+            rNH_1D           = pm2_interp[0,:,0,0]
+            dsout['pert_p2'] = pNH_interp - rNH_1D[None, :, None, None]
+            rNH_1D           = pNH_interp[0,:,0,0]
+            dsout['pert_p3'] = pNH_interp - rNH_1D[None, :, None, None] 
+            dsout['pert_p4']  = np.exp(interp_z(np.log(ds.nhpres_pert.values[:,::-1,:,:]), dsout['zc'], zinterp))
+            dsout['pert_p']   = ds.nhpres_pert.values[:,::-1,:,:]
+
+            # remove mean
+            psum = dsout['pert_p2'].sum(axis=(1,2,3))
+           # print(" \n Mean PERT_P2 pressure before: ", psum)
+            dsout['pert_p2'] =  dsout['pert_p2'] - psum[:,None,None,None] * psum.size / dsout['pert_p2'].size
+            psum = dsout['pert_p2'].sum(axis=(1,2,3))
+            # print(" \n Mean PERT_P2 pressure after: ", psum)
+
+            psum = dsout['pert_p3'].sum(axis=(1,2,3))
+            # print(" \n Mean PERT_P3 pressure before: ", psum)
+            dsout['pert_p3'] =  dsout['pert_p3'] - psum[:,None,None,None] * psum.size / dsout['pert_p3'].size
+            psum = dsout['pert_p2'].sum(axis=(1,2,3))
+            # print(" \n Mean PERT_P3 pressure after: ", psum)
 
         if key == 'base_p':
             dsout['base_p'] = np.broadcast_to(dsout['prs_dry'][np.newaxis, :, np.newaxis, np.newaxis], ds.nhpres.shape)
@@ -259,12 +311,19 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
             dsout['den'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
 
         if key == 'rwqv':
-            den           = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])
+            delp          = (ds.delp * (1.0 - ds.clwmr - ds.rwmr)).values[:,::-1,:,:]
+            den           = delp / (_grav*ds.delz.values[:,::-1,:,:])
             qv            = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])
             dsout['rwqv'] = den * ds.w.values[:,::-1,:,:] * qv
          
         if key == 'rw':
             dsout['rw']   = den * ds.w.values[:,::-1,:,:]
+
+        if key == 'total_q':
+            delp          = (ds.delp * (1.0 - ds.clwmr - ds.rwmr)).values[:,::-1,:,:]
+            den           = delp / (_grav*ds.delz.values[:,::-1,:,:])
+            qv            = ds.sphum.values[:,::-1,:,:] / (1.0 + ds.sphum.values[:,::-1,:,:])
+            dsout['total_q'] = den * (qv + ds.clwmr.values[:,::-1,:,:] + ds.rwmr.values[:,::-1,:,:])
         
         if key == 'rho':
             dsout['rho_star'] = ds.delp.values[:,::-1,:,:]/(_grav*ds.delz.values[:,::-1,:,:])  # simple way?
@@ -278,7 +337,7 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
             print(f"--->RHO DIFF:  {diff.max()} {diff.min()}")
 
             variables = list(set(variables + ['rho_star']) )
-
+            
         if key == 'accum_prec':
             try:
                 dsout['accum_prec'] = ds.rain_k.values[:,:,:]  # original name
@@ -287,11 +346,11 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
 
         if key == 'div2d':
             print(" -->Computing finite difference 2D divergence\n")
-            u = ds.ugrd.values[:,::-1,:,:]
-            v = ds.vgrd.values[:,::-1,:,:]
+            u = ds.ucomp.values[:,::-1,:,:]
+            v = ds.vcomp.values[:,::-1,:,:]
             dudx = np.gradient(u, axis=3)
             dvdy = np.gradient(v, axis=2)
-            dsout['div2d'] = dudx + dvdy
+            dsout['div2d'] = dudx + dvdy / (dsout['xc'][1] - dsout['xc'][0])
 
         if key == 'fft_div2d':
 
@@ -374,15 +433,15 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
 
         # read in BETA
         
-        print(f"\n Reading BETA from {os.path.join(path, 'w_b_accel.nc')}")
+        print(f"\n Reading BETA from {os.path.join(path, 'beta.nc')}")
 
-        dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
+        dsbeta = xr.load_dataset(os.path.join(path, "beta.nc"), decode_times=False)
 
         # read forcing in as well.
 
-        print(f"\n Reading density from {os.path.join(path, 'total_den.nc')}")
+        print(f"\n Reading density from {os.path.join(path, 'den.nc')}")
 
-        dsrho = xr.load_dataset(os.path.join(path, "total_den.nc"), decode_times=False)
+        dsrho = xr.load_dataset(os.path.join(path, "den.nc"), decode_times=False)
 
         den1d = dsrho.den.values[0,:,0,0]
         den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsrho.den.shape)
@@ -393,7 +452,26 @@ def read_solo_fields(path, vars = [''], file_pattern=None,
         dsrho.close()
         dsbeta.close()
 
-        variables = list(set(variables + ['beta','rho_p']) )
+    if ret_pb:   
+
+        # read in derived pressure buoyancy
+        
+        print(f"\n Reading Pb from {os.path.join(path, 'pb.nc')}")
+
+        dspb = xr.load_dataset(os.path.join(path, "pb.nc"), decode_times=False)
+
+        # for each time, set mean to zero
+
+        dsout['pb']  = dspb.Pb.values
+        psum         = dsout['pb'].sum(axis=(1,2,3))
+        # print(" \n Mean pressue before: ", psum)
+
+        dsout['pb'] =  dsout['pb'] - psum[:,None,None,None] * psum.size / dsout['pb'].size
+
+        psum         = dsout['pb'].sum(axis=(1,2,3))
+        # print(" \n Mean pressue after: ", psum)
+        
+        dspb.close()
   
     print(f"\n Completed reading in:  {fpath} --> time to process variables: {timer() - start:.2f} sec ")
 

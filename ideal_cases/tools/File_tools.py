@@ -1375,7 +1375,7 @@ def getobjdata(run_dir, model_type='wrf', filename=None):
 
 #-------------------------------------------------------------------------------
 
-def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
+def write_forcing(model, filename, source='CM1', variable="den", boundary_conditions=[1,1,1,1]):
 
     debug = True
     
@@ -1414,8 +1414,11 @@ def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
     t = ncfile.createVariable('time', np.float32, ('time',))
     t.units = 'sec'
     
-    den = ncfile.createVariable('den', np.float32, ('time','nz','ny','nx'))
-    den.units = 'kg/m^3'
+    array = ncfile.createVariable(variable, np.float32, ('time','nz','ny','nx'))
+    if variable == "den":
+        array.units = 'kg/m^3'
+    else:
+        array.units = "kg/m^2/s^2"
     
     # write coordinates and data
     
@@ -1423,9 +1426,9 @@ def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
     y[:] = model['yc'][:]
     t[:] = model['sec'][:]
     
-    for n in np.arange(model['rho'].shape[0]):
+    for n in np.arange(model[variable].shape[0]):
     
-        den[n,:,:,:] = model['rho'][n,:,:,:]
+        array[n,:,:,:] = model[variable][n,:,:,:]
         z[n,:,:,:]   = model['zc'][n,:,:,:]
     
     # print(ncfile)
@@ -1439,13 +1442,11 @@ def write_forcing(model, filename, source='CM1', boundary_conditions=[1,1,1,1]):
         except: pass
         ncfile = ncdf.Dataset(filename,mode='r') 
         print(ncfile, '\n')
-        print('\nGRID DIMENSIONS\n',ncfile.variables['den'].shape)
+        print('\nGRID DIMENSIONS\n',ncfile.variables[variable].shape)
         print('\nTIME\n',ncfile.variables['time'][:])
         print('\nXH\n',ncfile.variables['xh'][:])
         print('\nYH\n',ncfile.variables['yh'][:])
         print('\nZH\n',ncfile.variables['zh'][0,:,0,0])
-        den = ncfile.variables['den']
-        print('\nDENSITY COLUMN\n',den[0,:,0,0])
         ncfile.close()
     
     

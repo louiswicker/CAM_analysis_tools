@@ -35,6 +35,7 @@ _cvor        = 2.751
 _gravity     = 9.806
 _grav        = 9.806
 _p00         = 1.0e5
+_Rliq        = 4128.0
 
 
 _Cp    = 1004.0
@@ -65,7 +66,8 @@ class DictAsObject:
 #
 
 def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False, 
-                    ret_obj=False, ret_beta=False, zinterp=None, unit_test=False):
+                    ret_obj=False, ret_beta=False, 
+                    ret_pb=False, zinterp=None, unit_test=False):
  
     start0 = timer()
     
@@ -85,8 +87,7 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
     start = timer()   # time the IO part
     try:
-        ds = xr.load_dataset(fpath, decode_times=False)
-        ds.load()
+        ds = xr.open_dataset(fpath, decode_times=False)
     except:
         print(f"Cannot find file in {fpath} exiting")
         sys.exit(-1)
@@ -183,9 +184,16 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
                 dsout['pert_th'] = ds.th.values - dsout['base_th']
             
         if key == 'buoy': 
-            dsout['buoy'] = _grav*(ds.thpert.values/dsout['base_th']  \
-                          +  _epsil*(ds.qv.values - dsout['base_qv']) \
+            dsout['buoy'] = _grav *(ds.thpert.values/dsout['base_th'] \
+                          + _epsil*(ds.qv.values - dsout['base_qv'])  \
                           - ds.qc.values - ds.qr.values)
+            dsout['dbuoy'] = _grav *(ds.thpert.values/dsout['base_th'] \
+                          + _epsil*(ds.qv.values - dsout['base_qv']) )
+
+            den = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']*(1.0+_epsil*ds.qv.values)*(1.0 - ds.qc.values - ds.qr.values)))
+            dsout['rbuoy'] = den * dsout['buoy']
+               
+            variables = list(set(variables + ['dbuoy', 'rbuoy']) )
 
         if key == 'pert_t':
             dsout['pert_t'] = ds.th.values * dsout['base_pii'] - dsout['base_t']
@@ -211,8 +219,17 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
             dsout['pres'] = ds.prs.values
 
         if key == 'pert_p':
-            dsout['pert_p'] = ds.prspert.values
+            dsout['pert_p']  = ds.prspert.values
+            den              = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']))
+            temp             = ds.th.values*dsout['pii']
+            dsout['pert_p2'] = ds.prspert.values + (den*ds.qc.values*_Rliq*temp)
+            dsout['pert_p2'] = ds.prs.values * ds.qc.values * _Rliq / _Rgas
 
+            dp = dsout['pert_p'] - dsout['pert_p2']
+            print('\n',dp.max(), dp.min())
+
+            variables = list(set(variables + ['pert_p2']) )
+            
         if key == 'base_p':
             dsout['base_p'] = ds.prs[0,:,-1,-1].values
 
@@ -235,20 +252,20 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
        
         if key == 'rw':
             dsout['rw']   = den * w
-                            
+
+        if key == 'total_q':
+            den           = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']))
+            dsout['total_q'] = den * (ds.qv.values + ds.qc.values + ds.qr.values)
+    
         if key == 'rho':
             dsout['rho'] = ds.prs.values / (_Rgas*(ds.th.values*dsout['pii']*(1.0+_epsil*ds.qv.values)*(1.0 - ds.qc.values - ds.qr.values)))
             
         if key == 'temp':
             dsout['temp'] = ds.th.values*dsout['pii']
 
-        if key == 'dwdt':
+        if key == 'wrhs':
             tmp             = ds.wb_pgrad.values + ds.wb_buoy.values
-            dsout['dwdt']   = 0.5*(tmp[:,1:,:,:] + tmp[:,:-1,:,:])
-            try:
-                dsout['pgradb'] = ds.pgradb.values
-            except:
-                print(" -->Could not find buoyant pressure gradient decomp\n")
+            dsout['wrhs']   = 0.5*(tmp[:,1:,:,:] + tmp[:,:-1,:,:])
 
         if key == 'accum_prec':
             dsout['accum_prec'] = 10.*ds.rain.values  # convert CM to MM
@@ -341,15 +358,15 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
 
         # read in BETA
         
-        print(f"\n Reading BETA from {os.path.join(path, 'w_b_accel.nc')}")
+        print(f"\n Reading BETA from {os.path.join(path, 'beta.nc')}")
 
-        dsbeta = xr.load_dataset(os.path.join(path, "w_b_accel.nc"), decode_times=False)
+        dsbeta = xr.load_dataset(os.path.join(path, "beta.nc"), decode_times=False)
 
         # read forcing in as well.
 
-        print(f"\n Reading density from {os.path.join(path, 'total_den.nc')}")
+        print(f"\n Reading density from {os.path.join(path, 'den.nc')}")
 
-        dsrho = xr.load_dataset(os.path.join(path, "total_den.nc"), decode_times=False)
+        dsrho = xr.load_dataset(os.path.join(path, "den.nc"), decode_times=False)
 
         den1d = dsrho.den.values[0,:,0,0]
         den3d = np.broadcast_to(den1d[np.newaxis, :, np.newaxis, np.newaxis], dsrho.den.shape)
@@ -361,7 +378,28 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         dsbeta.close()
 
         variables = list(set(variables + ['beta','rho_p']) )
-    
+
+    if ret_pb:   
+
+        # read in derived pressure buoyancy
+        
+        print(f"\n Reading Pb from {os.path.join(path, 'pb.nc')}")
+
+        dspb = xr.load_dataset(os.path.join(path, "pb.nc"), decode_times=False)
+
+        # for each time, set mean to zero
+
+        dsout['pb']  = dspb.Pb.values
+        psum         = dsout['pb'].sum(axis=(1,2,3))
+        # print(psum)
+
+        dsout['pb_0'] =  dsout['pb'] - psum[:,None,None,None] * psum.size / dsout['pb'].size
+
+        psum         = dsout['pb_0'].sum(axis=(1,2,3))
+        # print(psum)
+        
+        dspb.close()
+
     print(f"\n Completed reading in:  {fpath} --> time to process variables: {timer()  - start:.2f} sec ")
 
     if zinterp is None:
@@ -371,8 +409,6 @@ def read_cm1_fields(path, vars = [''], file_pattern=None, ret_ds=False,
         print(f"\n Interpolating fields to single column z-grid: {fpath} \n")
 
         start = timer()
-
-        
 
         for key in variables:
              if dsout[key].ndim == dsout['zc'].ndim:

@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+sys.path.insert(0, '/work/wicker/CAM_analysis_tools/ideal_cases')
 
 import numpy as np
 import os as os
@@ -24,9 +25,6 @@ def chunck_precip(models, label, label2, chunk_size=4, axs=None, ylim=None, debu
         if key == 'cm1':  # CM1 has data a the zero time
             
             precip_dt = inv[0:-1] - inv[1:]
-
-        elif key == 'rk2':  # CM1 has data a the zero time
-            break
             
         else:
 
@@ -45,10 +43,10 @@ _cape  = ("QV12", "QV13", "QV16")
 _shear = ( "S06", "S18" )
 
 # 3 km runs
-_cape  = ("QV12", "QV13", "QV14", "QV15", "QV16")
-_shear = ( "S06", "S12", "S18" )
+_cape  = ("QV13", "QV16")
+_shear = ( "S06", "S18" )
 
-_profile_dir = "precip"
+_profile_dir = "data"
 _extra_label = ".pkl"
 
 parser = argparse.ArgumentParser()
@@ -87,6 +85,9 @@ for sh in args.shear:
 
         file = str(os.path.join(args.dir, "%s/%s" % (args.res, label)))
 
+        if args.core == 'rk':
+            model[label] = read_solo_fields(file, file_pattern=None, vars=['accum_prec'])
+
         if args.core == 'solo':
             model[label] = read_solo_fields(file, file_pattern=None, vars=['accum_prec'])
 
@@ -95,9 +96,7 @@ for sh in args.shear:
             model[label] = read_wrf_fields(file, file_pattern=None, vars=['accum_prec'])
 
         if args.core == 'cm1':
-            model[label] = read_cm1_fields(file, file_pattern=None, vars=['accum_prec'])
-
-            
+            model[label] = read_cm1_fields(file, file_pattern=None, vars=['accum_prec'])    
             
         if args.core == 'mpas':
             model[label] = read_mpas_fields(file, file_pattern=None, vars=['accum_prec'])
@@ -106,8 +105,6 @@ for sh in args.shear:
 
         print(f"Time to read {args.core} {label} file: {t2-t1}")
 
-precip_dt = inv[0:-1] - inv[1:]
-                
 with open('%s/%s_%s%s' % (_profile_dir, exp_name, args.res, _extra_label), 'wb') as handle:
     pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
